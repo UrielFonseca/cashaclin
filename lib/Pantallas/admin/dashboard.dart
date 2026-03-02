@@ -29,7 +29,7 @@ class Dashboard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            /// STATS
+            /// STATS (Estadisticas(
             Row(
               children: [
                 _statCard("\$33,700", "Ventas Totales", "+12.5%", Colors.green),
