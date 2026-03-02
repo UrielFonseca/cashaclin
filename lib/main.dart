@@ -22,18 +22,17 @@ class MyApp extends StatelessWidget {
       title: 'Casha Clin',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const HomePage(),
         '/admin': (context) => const AdminLayout(child: Dashboard()),
-        '/admin/products': (context) => const AdminLayout(child: ProductsPage()),
+        '/admin/products': (context) =>
+            const AdminLayout(child: ProductsPage()),
         '/admin/inventory': (context) => const AdminLayout(child: Inventory()),
         '/admin/customers': (context) => const AdminLayout(child: Customers()),
-        '/admin/sales': (context) => const AdminLayout(child: const Sales()),
+        '/admin/sales': (context) => const AdminLayout(child: Sales()),
         '/shop': (context) => const CustomerLayout(),
       },
     );
