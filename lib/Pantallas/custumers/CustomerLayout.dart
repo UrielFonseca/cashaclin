@@ -67,19 +67,25 @@ class _CustomerLayoutState extends State<CustomerLayout> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                const Icon(Icons.auto_awesome, size: 48, color: Colors.yellowAccent),
-                const SizedBox(height: 10),
-                const Text(
-                  "Casha Clin",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                // Logo principal (esquinas redondeadas)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(128),
+                  child: SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: Image.asset(
+                      'assets/images/casha_clin_logo.jpg',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 40),
                 _sidebarItem(0, "Catálogo", Icons.grid_view_rounded),
-                _sidebarItem(1, "Carrito (${cart.length})", Icons.shopping_cart_rounded),
+                _sidebarItem(
+                  1,
+                  "Carrito (${cart.length})",
+                  Icons.shopping_cart_rounded,
+                ),
                 _sidebarItem(2, "Pedido Especial", Icons.edit_note_rounded),
                 const Spacer(),
                 ListTile(

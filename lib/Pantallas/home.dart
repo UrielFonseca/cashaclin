@@ -49,8 +49,7 @@ class HomePage extends StatelessWidget {
                   children: [
                     const SizedBox(height: 20),
 
-                    // ✨ Logo principal
-                    // ✨ Logo principal (esquinas redondeadas)
+                    // Logo principal (esquinas redondeadas)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(128),
                       child: SizedBox(
