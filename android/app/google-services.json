@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "94655165843",
+    "project_id": "cashaclean",
+    "storage_bucket": "cashaclean.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94655165843:android:5f7b57fcbfd714c5e0e466",
+        "android_client_info": {
+          "package_name": "com.example.cashaclin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9kL3O1PkdqSFtK-ZdBOuCZhnuf5tteio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
