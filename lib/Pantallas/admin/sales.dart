@@ -26,62 +26,63 @@ class Sales extends StatefulWidget {
 class _SalesState extends State<Sales> {
   final List<Sale> sales = [
     Sale(id: "ORD-001", customer: "Juan Perez", date: "2023-10-25", total: 1500.0, status: "Completada"),
-    Sale(id: "ORD-002", customer: "Maria Garcia", date: "2023-10-26", total: 850.50, status: "Pendiente"),
+    Sale(id: "ORD-002", customer: "Maria Garcia", date: "2023-10-26", total: 850.5, status: "Pendiente"),
     Sale(id: "ORD-003", customer: "Carlos Lopez", date: "2023-10-26", total: 2100.0, status: "Completada"),
     Sale(id: "ORD-004", customer: "Ana Martinez", date: "2023-10-27", total: 450.0, status: "Cancelada"),
-    Sale(id: "ORD-005", customer: "Roberto Sanchez", date: "2023-10-27", total: 1200.0, status: "Pendiente"),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final completedSales = sales.where((s) => s.status == "Completada").length;
-    final pendingSales = sales.where((s) => s.status == "Pendiente").length;
-    final totalRevenue = sales.where((s) => s.status == "Completada").fold(0.0, (sum, s) => sum + s.total);
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Container(
-      color: const Color(0xfff3f4f6),
-      padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Ventas", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              _statCard("Ventas Completadas", completedSales.toString(), Colors.green),
-              const SizedBox(width: 16),
-              _statCard("Ventas Pendientes", pendingSales.toString(), Colors.orange),
-              const SizedBox(width: 16),
-              _statCard("Total Ingresos", "\$${totalRevenue.toStringAsFixed(2)}", Colors.blue),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+          const Text("Ventas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          
+          isMobile 
+            ? Column(
+                children: [
+                  _statItem(Icons.check_circle, "Completas", "3", Colors.green),
+                  const SizedBox(height: 8),
+                  _statItem(Icons.pending, "Pendientes", "1", Colors.orange),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: _statItem(Icons.check_circle, "Ventas Completas", "3", Colors.green)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _statItem(Icons.pending, "Ventas Pendientes", "1", Colors.orange)),
+                ],
               ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text("ID Orden")),
-                    DataColumn(label: Text("Cliente")),
-                    DataColumn(label: Text("Fecha")),
-                    DataColumn(label: Text("Total")),
-                    DataColumn(label: Text("Estado")),
-                  ],
-                  rows: sales.map((sale) {
-                    return DataRow(cells: [
-                      DataCell(Text(sale.id, style: const TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(Text(sale.customer)),
-                      DataCell(Text(sale.date)),
-                      DataCell(Text("\$${sale.total.toStringAsFixed(2)}")),
-                      DataCell(_statusChip(sale.status)),
-                    ]);
-                  }).toList(),
-                ),
+          
+          const SizedBox(height: 24),
+          
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Container(
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: DataTable(
+                horizontalMargin: 12,
+                columnSpacing: 15,
+                headingRowHeight: 45,
+                columns: const [
+                  DataColumn(label: Text("ID", style: TextStyle(fontSize: 12))),
+                  DataColumn(label: Text("Cliente", style: TextStyle(fontSize: 12))),
+                  DataColumn(label: Text("Total", style: TextStyle(fontSize: 12))),
+                  DataColumn(label: Text("Estado", style: TextStyle(fontSize: 12))),
+                ],
+                rows: sales.map((sale) {
+                  return DataRow(cells: [
+                    DataCell(Text(sale.id, style: const TextStyle(fontSize: 11))),
+                    DataCell(SizedBox(width: 80, child: Text(sale.customer, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
+                    DataCell(Text("\$${sale.total.toStringAsFixed(0)}", style: const TextStyle(fontSize: 11))),
+                    DataCell(_statusBadge(sale.status)),
+                  ]);
+                }).toList(),
               ),
             ),
           ),
@@ -90,39 +91,32 @@ class _SalesState extends State<Sales> {
     );
   }
 
-  Widget _statCard(String title, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: Colors.grey)),
-          ],
-        ),
+  Widget _statItem(IconData icon, String title, String val, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: color.withOpacity(0.1), radius: 18, child: Icon(icon, color: color, size: 18)),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ],
+          )
+        ],
       ),
     );
   }
 
-  Widget _statusChip(String status) {
-    Color color;
-    switch (status) {
-      case "Completada": color = Colors.green; break;
-      case "Pendiente": color = Colors.orange; break;
-      case "Cancelada": color = Colors.red; break;
-      default: color = Colors.grey;
-    }
-    return Chip(
-      label: Text(status, style: const TextStyle(color: Colors.white, fontSize: 12)),
-      backgroundColor: color,
-      padding: EdgeInsets.zero,
+  Widget _statusBadge(String status) {
+    Color col = status == "Completada" ? Colors.green : (status == "Pendiente" ? Colors.orange : Colors.red);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: col.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text(status, style: TextStyle(color: col, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }

@@ -18,52 +18,30 @@ class _AdminLayoutState extends State<AdminLayout> {
     _NavItem("Ventas", Icons.shopping_bag, "/admin/sales"),
   ];
 
-  void navigateTo(String route) {
-    if (Navigator.canPop(context)) {
-      final ScaffoldState? scaffold = Scaffold.maybeOf(context);
-      if (scaffold?.isDrawerOpen ?? false) {
-        Navigator.pop(context);
-      }
-    }
-    Navigator.pushReplacementNamed(context, route);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 900;
-    final currentRoute = ModalRoute.of(context)?.settings.name ?? "/admin";
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final String currentRoute = ModalRoute.of(context)?.settings.name ?? "/admin";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
-      drawer: isDesktop ? null : _buildDrawer(currentRoute),
       appBar: AppBar(
         elevation: 0,
-        title: const Text(
-          "Casha Clin - Admin",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        title: const Text("Casha Clin - Admin", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18)),
         backgroundColor: const Color(0xFF1E3A8A),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.pushReplacementNamed(context, "/"),
-              icon: const Icon(Icons.logout, size: 18, color: Colors.white),
-              label: const Text("Salir", style: TextStyle(color: Colors.white)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white30),
-              ),
-            ),
+          IconButton(
+            onPressed: () => Navigator.pushReplacementNamed(context, "/"),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
+      drawer: isMobile ? _buildDrawer(currentRoute) : null,
       body: Row(
         children: [
-          if (isDesktop) _buildSidebar(currentRoute),
-          Expanded(
-            child: widget.child,
-          ),
+          if (!isMobile) _buildSidebar(currentRoute),
+          Expanded(child: widget.child), // Eliminamos el ScrollView de aquí
         ],
       ),
     );
@@ -71,46 +49,12 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   Widget _buildSidebar(String currentRoute) {
     return Container(
-      width: 260,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Colors.grey.shade200)),
-      ),
+      width: 250,
+      color: Colors.white,
       child: Column(
         children: [
           const SizedBox(height: 20),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: navItems.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 4),
-              itemBuilder: (context, index) {
-                final item = navItems[index];
-                final isActive = currentRoute == item.route;
-
-                return ListTile(
-                  leading: Icon(
-                    item.icon,
-                    color: isActive ? const Color(0xFF2563EB) : Colors.grey,
-                  ),
-                  title: Text(
-                    item.label,
-                    style: TextStyle(
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                      color: isActive ? const Color(0xFF2563EB) : Colors.black87,
-                    ),
-                  ),
-                  tileColor: isActive ? const Color(0xFFEFF6FF) : Colors.transparent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onTap: () => navigateTo(item.route),
-                );
-              },
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Text("v1.0.2", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          )
+          ...navItems.map((item) => _menuItem(item, currentRoute)),
         ],
       ),
     );
@@ -118,29 +62,27 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   Widget _buildDrawer(String currentRoute) {
     return Drawer(
-      backgroundColor: Colors.white,
       child: Column(
         children: [
           const DrawerHeader(
             decoration: BoxDecoration(color: Color(0xFF1E3A8A)),
-            child: Center(
-              child: Text(
-                "MENU",
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
+            child: Center(child: Text("MENU ADMIN", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
           ),
-          ...navItems.map((item) {
-            final isActive = currentRoute == item.route;
-            return ListTile(
-              leading: Icon(item.icon, color: isActive ? Colors.blue : null),
-              title: Text(item.label, style: TextStyle(color: isActive ? Colors.blue : null)),
-              selected: isActive,
-              onTap: () => navigateTo(item.route),
-            );
-          }),
+          ...navItems.map((item) => _menuItem(item, currentRoute, isDrawer: true)),
         ],
       ),
+    );
+  }
+
+  Widget _menuItem(_NavItem item, String currentRoute, {bool isDrawer = false}) {
+    final bool isActive = currentRoute == item.route;
+    return ListTile(
+      leading: Icon(item.icon, color: isActive ? const Color(0xFF2563EB) : Colors.grey),
+      title: Text(item.label, style: TextStyle(color: isActive ? const Color(0xFF2563EB) : Colors.black87, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+      onTap: () {
+        if (isDrawer) Navigator.pop(context);
+        Navigator.pushReplacementNamed(context, item.route);
+      },
     );
   }
 }
@@ -149,6 +91,5 @@ class _NavItem {
   final String label;
   final IconData icon;
   final String route;
-
   _NavItem(this.label, this.icon, this.route);
 }

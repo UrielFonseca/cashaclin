@@ -24,46 +24,41 @@ class _CatalogPageState extends State<CatalogPage> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             "Catálogo de Productos",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
           ),
           const Text(
-            "Precios especiales para minoristas y mayoristas",
-            style: TextStyle(color: Colors.grey, fontSize: 16),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: "Busca productos por nombre...",
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onChanged: (v) => setState(() => searchTerm = v),
-                ),
-              ),
-            ],
+            "Precios especiales minoristas/mayoristas",
+            style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
           const SizedBox(height: 16),
+          TextField(
+            decoration: InputDecoration(
+              hintText: "Buscar...",
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (v) => setState(() => searchTerm = v),
+          ),
+          const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: categories.map((cat) => Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(cat),
+                  label: Text(cat, style: const TextStyle(fontSize: 12)),
                   selected: selectedCategory == cat,
                   onSelected: (val) => setState(() => selectedCategory = cat),
                   selectedColor: const Color(0xFF2563EB),
@@ -74,14 +69,14 @@ class _CatalogPageState extends State<CatalogPage> {
               )).toList(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Expanded(
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 250,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+                maxCrossAxisExtent: 200,
+                childAspectRatio: 0.65,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
               ),
               itemCount: products.length,
               itemBuilder: (context, index) => _productCard(products[index]),
@@ -96,83 +91,81 @@ class _CatalogPageState extends State<CatalogPage> {
     int quantity = 1;
     return StatefulBuilder(
       builder: (context, setStateCard) => Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 1,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
+              flex: 3,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Image.network(
                   product.image,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.image_not_supported, size: 40),
+                    color: Colors.grey.shade100,
+                    child: const Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
                   ),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      product.category,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    "\$${product.price.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          _qtyBtn(Icons.remove, () => setStateCard(() => quantity = quantity > 1 ? quantity - 1 : 1)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text("$quantity"),
-                          ),
-                          _qtyBtn(Icons.add, () => setStateCard(() => quantity++)),
-                        ],
-                      ),
-                      IconButton.filled(
-                        onPressed: () => widget.onAddToCart(product, quantity),
-                        icon: const Icon(Icons.add_shopping_cart, size: 18),
-                        style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E3A8A),
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.category.toUpperCase(),
+                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue),
                         ),
-                      )
-                    ],
-                  )
-                ],
+                        Text(
+                          product.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          "\$${product.price.toStringAsFixed(2)}",
+                          style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            _qtyBtn(Icons.remove, () => setStateCard(() => quantity = quantity > 1 ? quantity - 1 : 1)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text("$quantity", style: const TextStyle(fontSize: 12)),
+                            ),
+                            _qtyBtn(Icons.add, () => setStateCard(() => quantity++)),
+                          ],
+                        ),
+                        SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: IconButton.filled(
+                            padding: EdgeInsets.zero,
+                            onPressed: () => widget.onAddToCart(product, quantity),
+                            icon: const Icon(Icons.add_shopping_cart, size: 16),
+                            style: IconButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+                          ),
+                        )
+                      ],
+                    )
+                  ],
+                ),
               ),
             )
           ],
@@ -184,13 +177,13 @@ class _CatalogPageState extends State<CatalogPage> {
   Widget _qtyBtn(IconData icon, VoidCallback tap) => InkWell(
     onTap: tap,
     child: Container(
-      width: 28,
-      height: 28,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Icon(icon, size: 16),
+      child: Icon(icon, size: 14),
     ),
   );
 }

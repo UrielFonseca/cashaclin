@@ -26,17 +26,17 @@ class CartPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.grey.shade300),
+            Icon(Icons.shopping_basket_outlined, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text("Tu carrito está vacío", style: TextStyle(fontSize: 20, color: Colors.grey)),
+            const Text("Carrito vacío", style: TextStyle(fontSize: 18, color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: onGoToCatalog,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E3A8A),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-              child: const Text("Explorar Catálogo", style: TextStyle(color: Colors.white)),
+              child: const Text("Explorar", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -44,58 +44,54 @@ class CartPage extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Mi Carrito",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-              ),
-              TextButton.icon(
-                onPressed: onEmptyCart,
-                icon: const Icon(Icons.delete_sweep, color: Colors.red),
-                label: const Text("Vaciar Carrito", style: TextStyle(color: Colors.red)),
-              )
+              const Text("Mi Compra", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+              IconButton(onPressed: onEmptyCart, icon: const Icon(Icons.delete_sweep, color: Colors.red, size: 24)),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           Expanded(
             child: ListView.builder(
               itemCount: cart.length,
               itemBuilder: (context, index) {
                 final item = cart[index];
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        item.product.image,
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 50,
-                          height: 50,
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.image_not_supported),
-                        ),
-                      ),
-                    ),
-                    title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("\$${item.product.price} x ${item.quantity}"),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
                       children: [
-                        IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => onUpdateQuantity(index, -1)),
-                        Text("${item.quantity}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => onUpdateQuantity(index, 1)),
-                        const SizedBox(width: 20),
-                        Text("\$${item.total.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(item.product.image, width: 45, height: 45, fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, size: 45)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text("\$${item.product.price} x ${item.quantity}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _actionBtn(Icons.remove_circle_outline, () => onUpdateQuantity(index, -1)),
+                            Text("${item.quantity}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            _actionBtn(Icons.add_circle_outline, () => onUpdateQuantity(index, 1)),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        Text("\$${item.total.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -103,42 +99,32 @@ class CartPage extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-            ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
             child: Column(
               children: [
-                _priceRow("Subtotal", subtotal),
-                _priceRow("IVA (16%)", iva),
-                const Divider(height: 32),
-                _priceRow("TOTAL", total, isTotal: true),
-                const SizedBox(height: 24),
+                _miniRow("Subtotal", subtotal),
+                _miniRow("IVA (16%)", iva),
+                const Divider(height: 16),
+                _miniRow("TOTAL", total, isTotal: true),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: onGoToCatalog,
-                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                        child: const Text("Continuar Comprando"),
+                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: Color(0xFF1E3A8A))),
+                        child: const Text("Seguir", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text(
-                          "Finalizar Compra",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), padding: const EdgeInsets.symmetric(vertical: 12)),
+                        child: const Text("Pagar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ),
                   ],
@@ -151,21 +137,13 @@ class CartPage extends StatelessWidget {
     );
   }
 
-  Widget _priceRow(String label, double val, {bool isTotal = false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontSize: isTotal ? 20 : 16, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
-        Text(
-          "\$${val.toStringAsFixed(2)}",
-          style: TextStyle(
-            fontSize: isTotal ? 24 : 16,
-            fontWeight: FontWeight.bold,
-            color: isTotal ? Colors.green : Colors.black87,
-          ),
-        ),
-      ],
-    ),
+  Widget _actionBtn(IconData icon, VoidCallback tap) => IconButton(icon: Icon(icon, size: 20), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: tap);
+
+  Widget _miniRow(String label, double val, {bool isTotal = false}) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label, style: TextStyle(fontSize: isTotal ? 16 : 13, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
+      Text("\$${val.toStringAsFixed(2)}", style: TextStyle(fontSize: isTotal ? 18 : 13, fontWeight: FontWeight.bold, color: isTotal ? Colors.green : Colors.black87)),
+    ],
   );
 }

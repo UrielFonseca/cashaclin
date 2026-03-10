@@ -25,132 +25,92 @@ class _InventoryState extends State<Inventory> {
         product.sku.toLowerCase().contains(searchTerm.toLowerCase())).toList();
   }
 
-  List<Product> get lowStockProducts =>
-      products.where((p) => p.stock <= 15).toList();
-
   void updateStock(String id, int change) {
     setState(() {
       final index = products.indexWhere((p) => p.id == id);
       if (index != -1) {
-        products[index].stock =
-            (products[index].stock + change).clamp(0, 9999);
+        products[index].stock = (products[index].stock + change).clamp(0, 9999);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalUnits =
-    products.fold<int>(0, (sum, p) => sum + p.stock);
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final totalUnits = products.fold<int>(0, (sum, p) => sum + p.stock);
 
-    return Container(
-      color: const Color(0xfff3f4f6),
-      padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Header
-          const Text("Inventario",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text("Control de stock y movimientos"),
-          const SizedBox(height: 24),
-
-          /// Stats
-          Row(
-            children: [
-              _statCard("Total Unidades", totalUnits.toString()),
-              const SizedBox(width: 16),
-              _statCard("Productos Activos", products.length.toString()),
-              const SizedBox(width: 16),
-              _statCard("Stock Bajo", lowStockProducts.length.toString(),
-                  color: Colors.red),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          /// Search
-          TextField(
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: "Buscar productos...",
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                searchTerm = value;
-              });
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          /// Table
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  )
+          const Text("Inventario", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text("Control de stock", style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 20),
+          
+          isMobile 
+            ? Column(
+                children: [
+                  _statItem(Icons.inventory_2, "Total Unidades", totalUnits.toString(), Colors.blue),
+                  const SizedBox(height: 8),
+                  _statItem(Icons.category, "Productos", products.length.toString(), Colors.orange),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: _statItem(Icons.inventory_2, "Total Unidades", totalUnits.toString(), Colors.blue)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _statItem(Icons.category, "Productos", products.length.toString(), Colors.orange)),
                 ],
               ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  horizontalMargin: 20,
-                  columnSpacing: 40,
-                  columns: const [
-                    DataColumn(label: Text("Producto")),
-                    DataColumn(label: Text("SKU")),
-                    DataColumn(label: Text("Stock")),
-                    DataColumn(label: Text("Estado")),
-                    DataColumn(label: Text("Acciones")),
-                  ],
-                  rows: filteredProducts.map((product) {
-                    return DataRow(cells: [
-                      DataCell(Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              product.image,
-                              width: 45,
-                              height: 45,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                width: 45,
-                                height: 45,
-                                color: Colors.grey.shade200,
-                                child: const Icon(Icons.image_not_supported, size: 20),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(product.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        ],
-                      )),
-                      DataCell(Text(product.sku)),
-                      DataCell(Text("${product.stock}")),
-                      DataCell(_stockStatus(product.stock)),
-                      DataCell(Row(
-                        children: [
-                          _actionButton("-", () => updateStock(product.id, -1), color: Colors.red.shade400),
-                          const SizedBox(width: 8),
-                          _actionButton("+", () => updateStock(product.id, 1), color: Colors.blue.shade400),
-                        ],
-                      )),
-                    ]);
-                  }).toList(),
-                ),
+          
+          const SizedBox(height: 24),
+          TextField(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search, size: 20),
+              hintText: "Buscar...",
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: (v) => setState(() => searchTerm = v),
+          ),
+          const SizedBox(height: 20),
+          
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)],
+              ),
+              child: DataTable(
+                horizontalMargin: 12,
+                columnSpacing: 20,
+                headingRowHeight: 50,
+                dataRowHeight: 60, 
+                columns: const [
+                  DataColumn(label: Text("Prod", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text("SKU", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text("Stock", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                ],
+                rows: filteredProducts.map((product) {
+                  return DataRow(cells: [
+                    DataCell(SizedBox(width: 80, child: Text(product.name, style: const TextStyle(fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                    DataCell(Text(product.sku, style: const TextStyle(fontSize: 11))),
+                    DataCell(Text("${product.stock}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: product.stock <= 10 ? Colors.red : Colors.black))),
+                    DataCell(Row(
+                      children: [
+                        _actionBtn("-", () => updateStock(product.id, -1), Colors.red.shade100, Colors.red),
+                        const SizedBox(width: 8),
+                        _actionBtn("+", () => updateStock(product.id, 1), Colors.blue.shade100, Colors.blue),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
               ),
             ),
           ),
@@ -159,56 +119,40 @@ class _InventoryState extends State<Inventory> {
     );
   }
 
-  Widget _statCard(String title, String value, {Color color = Colors.blue}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: Colors.grey)),
-          ],
-        ),
+  Widget _statItem(IconData icon, String title, String val, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(12), 
+        boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)]
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withAlpha(26), 
+            radius: 18, 
+            child: Icon(icon, color: color, size: 18)
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ],
+          )
+        ],
       ),
     );
   }
 
-  Widget _stockStatus(int stock) {
-    if (stock > 20) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-        child: Text("Suficiente", style: TextStyle(color: Colors.green.shade700, fontSize: 12)),
-      );
-    } else {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-        child: Text("Bajo", style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
-      );
-    }
-  }
-
-  Widget _actionButton(String text, VoidCallback onPressed, {required Color color}) {
-    return SizedBox(
-      width: 35,
-      height: 35,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
-        padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          backgroundColor: color.withOpacity(0.1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
-  }
+  Widget _actionBtn(String text, VoidCallback tap, Color bg, Color textCol) => InkWell(
+    onTap: tap,
+    child: Container(
+      width: 28, height: 28,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Center(child: Text(text, style: TextStyle(color: textCol, fontWeight: FontWeight.bold, fontSize: 16))),
+    ),
+  );
 }

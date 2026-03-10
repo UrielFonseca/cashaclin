@@ -1,4 +1,4 @@
-import  'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../models/products_data.dart';
 
@@ -101,101 +101,126 @@ class _ProductsPageState extends State<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
+          isMobile 
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Catálogo de Productos", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                  Text("Administra la información pública de tus artículos"),
+                  const Text("Productos", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text("Administra tus artículos", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showProductDialog(),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text("Nuevo Producto"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  )
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Catálogo de Productos", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                      Text("Administra la información pública de tus artículos"),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showProductDialog(),
+                    icon: const Icon(Icons.add),
+                    label: const Text("Nuevo Producto"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                    ),
+                  )
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showProductDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text("Nuevo Producto"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A8A),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                ),
-              )
-            ],
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           TextField(
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, size: 20),
               hintText: "Buscar por nombre o clave...",
+              isDense: true,
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
             onChanged: (value) => setState(() => searchTerm = value),
           ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 350,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-              ),
-              itemCount: filteredProducts.length,
-              itemBuilder: (context, index) => _productCard(filteredProducts[index]),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: isMobile ? 200 : 300,
+              childAspectRatio: isMobile ? 0.6 : 0.75,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
             ),
+            itemCount: filteredProducts.length,
+            itemBuilder: (context, index) => _productCard(filteredProducts[index], isMobile),
           ),
         ],
       ),
     );
   }
 
-  Widget _productCard(Product product) {
+  Widget _productCard(Product product, bool isMobile) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 4,
+            flex: 3,
             child: Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   child: Image.network(
                     product.image,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey)),
+                      color: Colors.grey.shade100,
+                      child: const Center(child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey)),
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: 5,
+                  right: 5,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                    child: Text(product.sku, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(4)),
+                    child: Text(product.sku, style: const TextStyle(color: Colors.white, fontSize: 10)),
                   ),
                 ),
               ],
             ),
           ),
           Expanded(
-            flex: 5,
+            flex: 4,
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -203,30 +228,35 @@ class _ProductsPageState extends State<ProductsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text(product.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 15), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
-                      Text("\$${product.price.toStringAsFixed(2)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text("\$${product.price.toStringAsFixed(0)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                     ],
                   ),
+                  Text(product.category, style: TextStyle(color: Colors.blue.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(product.category, style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: Text(product.description, style: const TextStyle(color: Colors.grey, fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
-                  ),
-                  const Divider(),
+                  if (!isMobile)
+                    Expanded(
+                      child: Text(product.description, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                  const Spacer(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Stock: ${product.stock}", style: TextStyle(fontWeight: FontWeight.bold, color: product.stock <= 10 ? Colors.red : Colors.black87)),
+                      Text("S: ${product.stock}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: product.stock <= 10 ? Colors.red : Colors.black87)),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
                             onPressed: () => _showProductDialog(product: product),
                           ),
+                          const SizedBox(width: 4),
                           IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
                             onPressed: () {
                               setState(() => products.removeWhere((p) => p.id == product.id));
                             },
