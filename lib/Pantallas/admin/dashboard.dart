@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class Dashboard extends StatelessWidget {
@@ -8,98 +9,129 @@ class Dashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Container(
-      color: const Color(0xfff1f5f9),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Dashboard",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const Text("Resumen general de tu negocio", style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // STATS GRID
-                  isMobile 
-                    ? Column(
-                        children: [
-                          Row(children: [_statCard("\$33,700", "Ventas", "+12.5%", Colors.green), const SizedBox(width: 8), _statCard("156", "Productos", "+8", Colors.green)]),
-                          const SizedBox(height: 8),
-                          Row(children: [_statCard("1,234", "Clientes", "+23.1%", Colors.green), const SizedBox(width: 8), _statCard("324", "Pedidos", "-2.4%", Colors.red)]),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          _statCard("\$33,700", "Ventas Totales", "+12.5%", Colors.green),
-                          const SizedBox(width: 16),
-                          _statCard("156", "Productos", "+8", Colors.green),
-                          const SizedBox(width: 16),
-                          _statCard("1,234", "Clientes", "+23.1%", Colors.green),
-                          const SizedBox(width: 16),
-                          _statCard("324", "Pedidos", "-2.4%", Colors.red),
-                        ],
+    return StreamBuilder(
+      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      builder: (context, AsyncSnapshot<QuerySnapshot> productSnap) {
+        return StreamBuilder(
+          stream: FirebaseFirestore.instance.collection('customers').snapshots(),
+          builder: (context, AsyncSnapshot<QuerySnapshot> customerSnap) {
+            return StreamBuilder(
+              stream: FirebaseFirestore.instance.collection('sales').snapshots(),
+              builder: (context, AsyncSnapshot<QuerySnapshot> salesSnap) {
+                if (!productSnap.hasData || !customerSnap.hasData || !salesSnap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final int totalProducts = productSnap.data!.docs.length;
+                final int totalCustomers = customerSnap.data!.docs.length;
+                final int totalSalesCount = salesSnap.data!.docs.length;
+                double totalRevenue = 0;
+                for (var doc in salesSnap.data!.docs) {
+                  totalRevenue += (doc['total'] ?? 0).toDouble();
+                }
+
+                return Container(
+                  color: const Color(0xfff1f5f9),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Dashboard Real", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const Text("Datos sincronizados con la nube", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              isMobile 
+                                ? Column(
+                                    children: [
+                                      Row(children: [_statCard("\$${totalRevenue.toStringAsFixed(0)}", "Ingresos", Icons.monetization_on, Colors.green), const SizedBox(width: 8), _statCard("$totalProducts", "Productos", Icons.inventory, Colors.blue)]),
+                                      const SizedBox(height: 8),
+                                      Row(children: [_statCard("$totalCustomers", "Clientes", Icons.people, Colors.orange), const SizedBox(width: 8), _statCard("$totalSalesCount", "Ventas", Icons.shopping_bag, Colors.purple)]),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      _statCard("\$${totalRevenue.toStringAsFixed(0)}", "Ingresos Totales", Icons.monetization_on, Colors.green),
+                                      const SizedBox(width: 16),
+                                      _statCard("$totalProducts", "Productos Activos", Icons.inventory, Colors.blue),
+                                      const SizedBox(width: 16),
+                                      _statCard("$totalCustomers", "Clientes Registrados", Icons.people, Colors.orange),
+                                      const SizedBox(width: 16),
+                                      _statCard("$totalSalesCount", "Pedidos Realizados", Icons.shopping_bag, Colors.purple),
+                                    ],
+                                  ),
+                              const SizedBox(height: 24),
+                              
+                              // GRÁFICA DE VENTAS
+                              _chartCard("Tendencia de Ventas", SizedBox(
+                                height: 200,
+                                child: LineChart(
+                                  LineChartData(
+                                    gridData: const FlGridData(show: false),
+                                    titlesData: const FlTitlesData(show: false),
+                                    borderData: FlBorderData(show: false),
+                                    lineBarsData: [
+                                      LineChartBarData(
+                                        isCurved: true,
+                                        color: Colors.blue,
+                                        barWidth: 4,
+                                        isStrokeCapRound: true,
+                                        dotData: const FlDotData(show: false),
+                                        belowBarData: BarAreaData(show: true, color: Colors.blue.withAlpha(20)),
+                                        spots: _getSalesSpots(salesSnap.data!.docs),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )),
+                              const SizedBox(height: 16),
+                              _recentSalesList(salesSnap.data!.docs),
+                            ],
+                          ),
+                        ),
                       ),
-                  const SizedBox(height: 24),
-                  
-                  // CHARTS
-                  if (isMobile) ...[
-                    _salesChart(),
-                    const SizedBox(height: 16),
-                    _pieChart(),
-                    const SizedBox(height: 16),
-                    _barChart(),
-                    const SizedBox(height: 16),
-                    _recentActivity(),
-                  ] else ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _salesChart()),
-                        const SizedBox(width: 16),
-                        Expanded(child: _pieChart()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _barChart()),
-                        const SizedBox(width: 16),
-                        Expanded(child: _recentActivity()),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _statCard(String value, String title, String change, Color changeColor) {
+  List<FlSpot> _getSalesSpots(List<QueryDocumentSnapshot> docs) {
+    if (docs.isEmpty) return [const FlSpot(0, 0)];
+    List<FlSpot> spots = [];
+    for (int i = 0; i < docs.length; i++) {
+      spots.add(FlSpot(i.toDouble(), (docs[i]['total'] ?? 0).toDouble()));
+    }
+    return spots;
+  }
+
+  Widget _statCard(String value, String title, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black.withOpacity(0.05))],
+          boxShadow: [BoxShadow(blurRadius: 5, color: const Color(0x0D000000))],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(change, style: TextStyle(color: changeColor, fontWeight: FontWeight.bold, fontSize: 10)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 1),
+            CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(color: Colors.grey, fontSize: 9), maxLines: 1),
+              ],
+            ),
           ],
         ),
       ),
@@ -110,58 +142,41 @@ class Dashboard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(blurRadius: 5, color: Colors.black.withOpacity(0.05))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 20),
           child,
         ],
       ),
     );
   }
 
-  Widget _salesChart() {
-    return _chartCard("Ventas Mensuales", SizedBox(height: 200, child: LineChart(LineChartData(
-      borderData: FlBorderData(show: false),
-      gridData: const FlGridData(show: true),
-      titlesData: const FlTitlesData(show: false),
-      lineBarsData: [LineChartBarData(isCurved: true, color: Colors.blue, barWidth: 3, spots: const [FlSpot(0, 4500), FlSpot(1, 5200), FlSpot(2, 4800), FlSpot(3, 6100), FlSpot(4, 5900), FlSpot(5, 7200)], dotData: const FlDotData(show: false))],
-    ))));
-  }
-
-  Widget _pieChart() {
-    return _chartCard("Categorías", SizedBox(height: 200, child: PieChart(PieChartData(sections: [
-      PieChartSectionData(value: 30, color: Colors.blue, title: "30%", radius: 40),
-      PieChartSectionData(value: 25, color: Colors.lightBlue, title: "25%", radius: 40),
-      PieChartSectionData(value: 20, color: Colors.amber, title: "20%", radius: 40),
-      PieChartSectionData(value: 15, color: Colors.orange, title: "15%", radius: 40),
-      PieChartSectionData(value: 10, color: Colors.grey, title: "10%", radius: 40),
-    ]))));
-  }
-
-  Widget _barChart() {
-    return _chartCard("Más Vendidos", SizedBox(height: 200, child: BarChart(BarChartData(
-      borderData: FlBorderData(show: false),
-      titlesData: const FlTitlesData(show: false),
-      barGroups: [
-        BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 85, color: Colors.blue)]),
-        BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 72, color: Colors.blue)]),
-        BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 68, color: Colors.blue)]),
-        BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 54, color: Colors.blue)]),
-      ],
-    ))));
-  }
-
-  Widget _recentActivity() {
-    return _chartCard("Actividad Reciente", Column(children: const [
-      ListTile(leading: Icon(Icons.shopping_cart, size: 20), title: Text("Venta", style: TextStyle(fontSize: 13)), subtitle: Text("Detergente", style: TextStyle(fontSize: 11)), trailing: Text("5 min", style: TextStyle(fontSize: 10))),
-      ListTile(leading: Icon(Icons.warning, size: 20), title: Text("Stock", style: TextStyle(fontSize: 13)), subtitle: Text("Limpiador", style: TextStyle(fontSize: 11)), trailing: Text("1 hr", style: TextStyle(fontSize: 10))),
-    ]));
+  Widget _recentSalesList(List<QueryDocumentSnapshot> sales) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Últimos Pedidos", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Divider(),
+          if (sales.isEmpty) const Text("No hay ventas registradas."),
+          ...sales.reversed.take(5).map((sale) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const CircleAvatar(backgroundColor: Color(0xFFEFF6FF), child: Icon(Icons.person, size: 18, color: Colors.blue)),
+            title: Text(sale['customerName'] ?? 'Anónimo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            subtitle: Text("\$${sale['total'].toStringAsFixed(0)}", style: const TextStyle(fontSize: 11)),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.green.withAlpha(20), borderRadius: BorderRadius.circular(8)),
+              child: const Text("Pagado", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          )),
+        ],
+      ),
+    );
   }
 }

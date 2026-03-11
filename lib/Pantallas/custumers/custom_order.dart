@@ -27,7 +27,7 @@ class CustomOrderPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+              boxShadow: [BoxShadow(color: Colors.black, blurRadius: 10)],
             ),
             child: Column(
               children: [
@@ -105,7 +105,7 @@ class CustomOrderPage extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+      boxShadow: [BoxShadow(color: Colors.black, blurRadius: 5)],
     ),
     child: Row(
       children: [

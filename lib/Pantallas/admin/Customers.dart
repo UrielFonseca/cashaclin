@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/customer_model.dart';
-import '../models/customers_data.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Customers extends StatefulWidget {
   const Customers({super.key});
@@ -10,38 +9,24 @@ class Customers extends StatefulWidget {
 }
 
 class _CustomersState extends State<Customers> {
-  late List<Customer> customers;
+  final CollectionReference customersRef = FirebaseFirestore.instance.collection('customers');
   String searchTerm = '';
 
-  @override
-  void initState() {
-    super.initState();
-    customers = List.from(mockCustomers);
-  }
-
-  List<Customer> get filteredCustomers {
-    return customers.where((customer) {
-      return customer.name.toLowerCase().contains(searchTerm.toLowerCase()) ||
-          customer.email.toLowerCase().contains(searchTerm.toLowerCase()) ||
-          customer.phone.contains(searchTerm);
-    }).toList();
-  }
-
-  void _showCustomerDialog({Customer? customer}) {
-    final nameController = TextEditingController(text: customer?.name ?? '');
-    final emailController = TextEditingController(text: customer?.email ?? '');
-    final phoneController = TextEditingController(text: customer?.phone ?? '');
+  void _showCustomerDialog({String? docId, Map<String, dynamic>? data}) {
+    final nameController = TextEditingController(text: data?['name'] ?? '');
+    final emailController = TextEditingController(text: data?['email'] ?? '');
+    final phoneController = TextEditingController(text: data?['phone'] ?? '');
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(customer == null ? "Nuevo Cliente" : "Editar Cliente"),
+        title: Text(docId == null ? "Nuevo Cliente" : "Editar Cliente"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _field(nameController, "Nombre"),
-              _field(emailController, "Email"),
+              _field(nameController, "Nombre Completo"),
+              _field(emailController, "Correo Electrónico"),
               _field(phoneController, "Teléfono"),
             ],
           ),
@@ -49,24 +34,18 @@ class _CustomersState extends State<Customers> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton(
-            onPressed: () {
-              final newCustomer = Customer(
-                id: customer?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameController.text,
-                email: emailController.text,
-                phone: phoneController.text,
-                totalOrders: customer?.totalOrders ?? 0,
-                totalSpent: customer?.totalSpent ?? 0,
-                joinDate: customer?.joinDate ?? DateTime.now(),
-              );
-              setState(() {
-                if (customer == null) {
-                  customers.add(newCustomer);
-                } else {
-                  final index = customers.indexWhere((c) => c.id == customer.id);
-                  customers[index] = newCustomer;
-                }
-              });
+            onPressed: () async {
+              final payload = {
+                'name': nameController.text,
+                'email': emailController.text,
+                'phone': phoneController.text,
+                'lastUpdate': FieldValue.serverTimestamp(),
+              };
+              if (docId == null) {
+                await customersRef.add(payload);
+              } else {
+                await customersRef.doc(docId).update(payload);
+              }
               Navigator.pop(context);
             },
             child: const Text("Guardar"),
@@ -85,59 +64,29 @@ class _CustomersState extends State<Customers> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          isMobile 
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Clientes", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showCustomerDialog(),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text("Agregar Cliente"),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
-                    ),
-                  )
-                ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Clientes", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                onPressed: () => _showCustomerDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text("Nuevo"),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
               )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Clientes", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                  ElevatedButton.icon(onPressed: () => _showCustomerDialog(), icon: const Icon(Icons.add), label: const Text("Agregar Cliente")),
-                ],
-              ),
-          const SizedBox(height: 20),
-          
-          // Stats Row
-          isMobile 
-            ? Column(
-                children: [
-                  _statItem(Icons.people, "Total", customers.length.toString(), Colors.blue),
-                  const SizedBox(height: 8),
-                  _statItem(Icons.monetization_on, "Ventas", "\$${customers.fold<double>(0, (s, c) => s + c.totalSpent).toStringAsFixed(0)}", Colors.green),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(child: _statItem(Icons.people, "Total Clientes", customers.length.toString(), Colors.blue)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _statItem(Icons.monetization_on, "Ingresos Totales", "\$${customers.fold<double>(0, (s, c) => s + c.totalSpent).toStringAsFixed(0)}", Colors.green)),
-                ],
-              ),
-          
-          const SizedBox(height: 20),
-          TextField(
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search, size: 20),
-              hintText: "Buscar...",
+              hintText: "Buscar cliente...",
               isDense: true,
               filled: true,
               fillColor: Colors.white,
@@ -145,55 +94,49 @@ class _CustomersState extends State<Customers> {
             ),
             onChanged: (v) => setState(() => searchTerm = v),
           ),
-          const SizedBox(height: 20),
-          
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: DataTable(
-                horizontalMargin: 12,
-                columnSpacing: 15,
-                headingRowHeight: 40,
-                columns: const [
-                  DataColumn(label: Text("Nombre", style: TextStyle(fontSize: 12))),
-                  DataColumn(label: Text("Tel", style: TextStyle(fontSize: 12))),
-                  DataColumn(label: Text("Acciones", style: TextStyle(fontSize: 12))),
-                ],
-                rows: filteredCustomers.map((customer) {
-                  return DataRow(cells: [
-                    DataCell(SizedBox(width: 100, child: Text(customer.name, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
-                    DataCell(Text(customer.phone, style: const TextStyle(fontSize: 11))),
-                    DataCell(Row(
-                      children: [
-                        IconButton(icon: const Icon(Icons.edit, size: 18, color: Colors.blue), onPressed: () => _showCustomerDialog(customer: customer)),
-                        IconButton(icon: const Icon(Icons.delete, size: 18, color: Colors.red), onPressed: () => setState(() => customers.removeWhere((c) => c.id == customer.id))),
-                      ],
-                    )),
-                  ]);
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: customersRef.snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              
+              final docs = snapshot.data!.docs.where((doc) {
+                return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+              }).toList();
 
-  Widget _statItem(IconData icon, String title, String val, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: color.withOpacity(0.1), radius: 18, child: Icon(icon, color: color, size: 18)),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ])
-        ],
-      ),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  child: DataTable(
+                    horizontalMargin: 12,
+                    columnSpacing: 15,
+                    headingRowHeight: 45,
+                    columns: const [
+                      DataColumn(label: Text("Nombre", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Teléfono", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: docs.map((doc) => DataRow(cells: [
+                      DataCell(SizedBox(width: 100, child: Text(doc['name'], style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
+                      DataCell(Text(doc['phone'], style: const TextStyle(fontSize: 11))),
+                      DataCell(Row(
+                        children: [
+                          IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.blue), onPressed: () => _showCustomerDialog(docId: doc.id, data: doc.data() as Map<String, dynamic>)),
+                          IconButton(icon: const Icon(Icons.delete, size: 16, color: Colors.red), onPressed: () => customersRef.doc(doc.id).delete()),
+                        ],
+                      )),
+                    ])).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

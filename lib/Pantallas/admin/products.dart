@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
-import '../models/products_data.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -10,22 +10,10 @@ class ProductsPage extends StatefulWidget {
 }
 
 class _ProductsPageState extends State<ProductsPage> {
-  late List<Product> products;
+  final CollectionReference productsRef = FirebaseFirestore.instance.collection('products');
   String searchTerm = '';
 
-  @override
-  void initState() {
-    super.initState();
-    products = List.from(mockProducts);
-  }
-
-  List<Product> get filteredProducts {
-    return products.where((product) =>
-    product.name.toLowerCase().contains(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().contains(searchTerm.toLowerCase())).toList();
-  }
-
-  void _showProductDialog({Product? product}) {
+  void _showProductDialog({Product? product, String? docId}) {
     final nameController = TextEditingController(text: product?.name ?? '');
     final skuController = TextEditingController(text: product?.sku ?? '');
     final categoryController = TextEditingController(text: product?.category ?? '');
@@ -37,67 +25,47 @@ class _ProductsPageState extends State<ProductsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(product == null ? "Nuevo Producto" : "Editar Producto"),
+        title: Text(docId == null ? "Nuevo Producto" : "Editar Producto"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildTextField(nameController, "Nombre"),
-              _buildTextField(skuController, "SKU / Clave"),
-              _buildTextField(categoryController, "Categoría"),
-              _buildTextField(descController, "Descripción", maxLines: 3),
-              _buildTextField(priceController, "Precio", keyboardType: TextInputType.number),
-              _buildTextField(stockController, "Stock Inicial", keyboardType: TextInputType.number),
-              _buildTextField(imageController, "URL de Imagen"),
+              _field(nameController, "Nombre"),
+              _field(skuController, "SKU"),
+              _field(categoryController, "Categoría"),
+              _field(descController, "Descripción", maxLines: 2),
+              _field(priceController, "Precio", type: TextInputType.number),
+              _field(stockController, "Stock", type: TextInputType.number),
+              _field(imageController, "URL Imagen"),
             ],
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-          ElevatedButton(
-            onPressed: () {
-              final newProduct = Product(
-                id: product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameController.text,
-                sku: skuController.text,
-                category: categoryController.text,
-                description: descController.text,
-                price: double.tryParse(priceController.text) ?? 0.0,
-                stock: int.tryParse(stockController.text) ?? 0,
-                image: imageController.text,
-              );
-
-              setState(() {
-                if (product == null) {
-                  products.add(newProduct);
-                } else {
-                  final index = products.indexWhere((p) => p.id == product.id);
-                  products[index] = newProduct;
-                }
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Guardar"),
-          ),
+          ElevatedButton(onPressed: () async {
+            if (nameController.text.isEmpty) return;
+            final data = {
+              'name': nameController.text,
+              'sku': skuController.text,
+              'category': categoryController.text,
+              'description': descController.text,
+              'price': double.tryParse(priceController.text) ?? 0.0,
+              'stock': int.tryParse(stockController.text) ?? 0,
+              'image': imageController.text,
+            };
+            if (docId == null) await productsRef.add(data);
+            else await productsRef.doc(docId).update(data);
+            if (mounted) Navigator.pop(context);
+          }, child: const Text("Guardar"))
         ],
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {int maxLines = 1, TextInputType? keyboardType}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
+  Widget _field(TextEditingController c, String l, {int maxLines = 1, TextInputType type = TextInputType.text}) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: TextField(controller: c, maxLines: maxLines, keyboardType: type, decoration: InputDecoration(labelText: l, border: const OutlineInputBorder(), isDense: true)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -106,167 +74,81 @@ class _ProductsPageState extends State<ProductsPage> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          isMobile 
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Productos", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const Text("Administra tus artículos", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showProductDialog(),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text("Nuevo Producto"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E3A8A),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  )
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Catálogo de Productos", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                      Text("Administra la información pública de tus artículos"),
-                    ],
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showProductDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text("Nuevo Producto"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
-                  )
-                ],
-              ),
-          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Productos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(onPressed: () => _showProductDialog(), icon: const Icon(Icons.add, size: 18), label: const Text("Nuevo")),
+            ],
+          ),
+          const SizedBox(height: 16),
           TextField(
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search, size: 20),
-              hintText: "Buscar por nombre o clave...",
-              isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            ),
-            onChanged: (value) => setState(() => searchTerm = value),
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 20), hintText: "Buscar...", filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), isDense: true),
+            onChanged: (v) => setState(() => searchTerm = v),
           ),
-          const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: isMobile ? 200 : 300,
-              childAspectRatio: isMobile ? 0.6 : 0.75,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: filteredProducts.length,
-            itemBuilder: (context, index) => _productCard(filteredProducts[index], isMobile),
-          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: productsRef.snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs.where((d) => d['name'].toString().toLowerCase().contains(searchTerm.toLowerCase())).toList();
+              
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: isMobile ? 180 : 250,
+                  childAspectRatio: isMobile ? 0.52 : 0.65,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final d = docs[index];
+                  final p = Product(id: d.id, name: d['name'], sku: d['sku'], category: d['category'], description: d['description'], price: d['price'].toDouble(), stock: d['stock'], image: d['image']);
+                  return _card(p, d.id);
+                },
+              );
+            },
+          )
         ],
       ),
     );
   }
 
-  Widget _productCard(Product product, bool isMobile) {
+  Widget _card(Product p, String id) {
     return Card(
-      elevation: 2,
+      elevation: 1,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Stack(
+          Expanded(flex: 3, child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(p.image, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Center(child: Icon(Icons.image, color: Colors.grey))))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: Image.network(
-                    product.image,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey.shade100,
-                      child: const Center(child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey)),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(4)),
-                    child: Text(product.sku, style: const TextStyle(color: Colors.white, fontSize: 10)),
-                  ),
-                ),
+                Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text("\$${p.price.toStringAsFixed(0)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Stock: ${p.stock}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Row(
+                      children: [
+                        GestureDetector(onTap: () => _showProductDialog(product: p, docId: id), child: const Icon(Icons.edit, size: 16, color: Colors.blue)),
+                        const SizedBox(width: 10),
+                        GestureDetector(onTap: () => productsRef.doc(id).delete(), child: const Icon(Icons.delete, size: 16, color: Colors.red)),
+                      ],
+                    )
+                  ],
+                )
               ],
-            ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(product.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 15), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                      Text("\$${product.price.toStringAsFixed(0)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
-                  ),
-                  Text(product.category, style: TextStyle(color: Colors.blue.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  if (!isMobile)
-                    Expanded(
-                      child: Text(product.description, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("S: ${product.stock}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: product.stock <= 10 ? Colors.red : Colors.black87)),
-                      Row(
-                        children: [
-                          IconButton(
-                            constraints: const BoxConstraints(),
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
-                            onPressed: () => _showProductDialog(product: product),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            constraints: const BoxConstraints(),
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-                            onPressed: () {
-                              setState(() => products.removeWhere((p) => p.id == product.id));
-                            },
-                          ),
-                        ],
-                      )
-                    ],
-                  )
-                ],
-              ),
             ),
           )
         ],

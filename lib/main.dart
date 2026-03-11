@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'Pantallas/home.dart';
 import 'Pantallas/admin/AdminLayout.dart';
 import 'Pantallas/admin/dashboard.dart';
@@ -8,7 +9,9 @@ import 'Pantallas/admin/sales.dart';
 import 'Pantallas/admin/products.dart';
 import 'Pantallas/custumers/CustomerLayout.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -27,12 +30,11 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomePage(),
-        '/admin': (context) => const AdminLayout(child: Dashboard()),
-        '/admin/products': (context) =>
-            const AdminLayout(child: ProductsPage()),
-        '/admin/inventory': (context) => const AdminLayout(child: Inventory()),
-        '/admin/customers': (context) => const AdminLayout(child: Customers()),
-        '/admin/sales': (context) => const AdminLayout(child: Sales()),
+        '/admin': (context) => const AdminLayout(child: const Dashboard()),
+        '/admin/products': (context) => const AdminLayout(child: const ProductsPage()),
+        '/admin/inventory': (context) => const AdminLayout(child: const Inventory()),
+        '/admin/customers': (context) => const AdminLayout(child: const Customers()),
+        '/admin/sales': (context) => const AdminLayout(child: const Sales()),
         '/shop': (context) => const CustomerLayout(),
       },
     );

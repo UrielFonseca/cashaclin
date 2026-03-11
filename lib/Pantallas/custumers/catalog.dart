@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
-import '../models/products_data.dart';
 
 class CatalogPage extends StatefulWidget {
   final Function(Product, int) onAddToCart;
@@ -13,29 +13,19 @@ class CatalogPage extends StatefulWidget {
 class _CatalogPageState extends State<CatalogPage> {
   String searchTerm = '';
   String selectedCategory = 'Todos';
+  final CollectionReference productsRef = FirebaseFirestore.instance.collection('products');
 
   @override
   Widget build(BuildContext context) {
     final categories = ['Todos', 'Lavandería', 'Pisos', 'Desinfección'];
-    final products = mockProducts.where((p) {
-      final matchesSearch = p.name.toLowerCase().contains(searchTerm.toLowerCase());
-      final matchesCat = selectedCategory == 'Todos' || p.category == selectedCategory;
-      return matchesSearch && matchesCat;
-    }).toList();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Catálogo de Productos",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-          ),
-          const Text(
-            "Precios especiales minoristas/mayoristas",
-            style: TextStyle(color: Colors.grey, fontSize: 14),
-          ),
+          const Text("Catálogo de Productos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+          const Text("Precios especiales minoristas/mayoristas", style: TextStyle(color: Colors.grey, fontSize: 14)),
           const SizedBox(height: 16),
           TextField(
             decoration: InputDecoration(
@@ -44,10 +34,7 @@ class _CatalogPageState extends State<CatalogPage> {
               isDense: true,
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
             onChanged: (v) => setState(() => searchTerm = v),
           ),
@@ -62,24 +49,48 @@ class _CatalogPageState extends State<CatalogPage> {
                   selected: selectedCategory == cat,
                   onSelected: (val) => setState(() => selectedCategory = cat),
                   selectedColor: const Color(0xFF2563EB),
-                  labelStyle: TextStyle(
-                    color: selectedCategory == cat ? Colors.white : Colors.black87,
-                  ),
+                  labelStyle: TextStyle(color: selectedCategory == cat ? Colors.white : Colors.black87),
                 ),
               )).toList(),
             ),
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 200,
-                childAspectRatio: 0.65,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: products.length,
-              itemBuilder: (context, index) => _productCard(products[index]),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: productsRef.snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                final products = snapshot.data!.docs.where((doc) {
+                  final matchesSearch = doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+                  final matchesCat = selectedCategory == 'Todos' || doc['category'] == selectedCategory;
+                  return matchesSearch && matchesCat;
+                }).toList();
+
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 200,
+                    childAspectRatio: 0.65,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final doc = products[index];
+                    final product = Product(
+                      id: doc.id,
+                      name: doc['name'],
+                      sku: doc['sku'],
+                      category: doc['category'],
+                      description: doc['description'],
+                      price: doc['price'].toDouble(),
+                      stock: doc['stock'],
+                      image: doc['image'],
+                    );
+                    return _productCard(product);
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -92,7 +103,6 @@ class _CatalogPageState extends State<CatalogPage> {
     return StatefulBuilder(
       builder: (context, setStateCard) => Card(
         elevation: 1,
-        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,15 +111,8 @@ class _CatalogPageState extends State<CatalogPage> {
               flex: 3,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  product.image,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade100,
-                    child: const Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
-                  ),
-                ),
+                child: Image.network(product.image, width: double.infinity, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported)),
               ),
             ),
             Expanded(
@@ -123,20 +126,9 @@ class _CatalogPageState extends State<CatalogPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          product.category.toUpperCase(),
-                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue),
-                        ),
-                        Text(
-                          product.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          "\$${product.price.toStringAsFixed(2)}",
-                          style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
+                        Text(product.category.toUpperCase(), style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text("\$${product.price.toStringAsFixed(0)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
                       ],
                     ),
                     Row(
@@ -145,20 +137,16 @@ class _CatalogPageState extends State<CatalogPage> {
                         Row(
                           children: [
                             _qtyBtn(Icons.remove, () => setStateCard(() => quantity = quantity > 1 ? quantity - 1 : 1)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text("$quantity", style: const TextStyle(fontSize: 12)),
-                            ),
+                            Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text("$quantity", style: const TextStyle(fontSize: 12))),
                             _qtyBtn(Icons.add, () => setStateCard(() => quantity++)),
                           ],
                         ),
                         SizedBox(
-                          width: 32,
-                          height: 32,
+                          width: 32, height: 32,
                           child: IconButton.filled(
                             padding: EdgeInsets.zero,
-                            onPressed: () => widget.onAddToCart(product, quantity),
-                            icon: const Icon(Icons.add_shopping_cart, size: 16),
+                            onPressed: product.stock > 0 ? () => widget.onAddToCart(product, quantity) : null,
+                            icon: Icon(product.stock > 0 ? Icons.add_shopping_cart : Icons.block, size: 16),
                             style: IconButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
                           ),
                         )
@@ -177,12 +165,8 @@ class _CatalogPageState extends State<CatalogPage> {
   Widget _qtyBtn(IconData icon, VoidCallback tap) => InkWell(
     onTap: tap,
     child: Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      width: 24, height: 24,
+      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
       child: Icon(icon, size: 14),
     ),
   );

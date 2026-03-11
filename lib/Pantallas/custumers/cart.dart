@@ -1,149 +1,149 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/cart_model.dart';
 
-class CartPage extends StatelessWidget {
+class CartPage extends StatefulWidget {
   final List<CartItem> cart;
   final Function(int, int) onUpdateQuantity;
   final VoidCallback onEmptyCart;
   final VoidCallback onGoToCatalog;
 
-  const CartPage({
-    super.key,
-    required this.cart,
-    required this.onUpdateQuantity,
-    required this.onEmptyCart,
-    required this.onGoToCatalog,
-  });
+  const CartPage({super.key, required this.cart, required this.onUpdateQuantity, required this.onEmptyCart, required this.onGoToCatalog});
+
+  @override
+  State<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<CartPage> {
+  final _formKey = GlobalKey<FormState>();
+  final nameCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
+
+  Future<void> _finalizeOrder() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    showDialog(
+      context: context, 
+      barrierDismissible: false, 
+      builder: (context) => const Center(child: CircularProgressIndicator())
+    );
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final saleId = FirebaseFirestore.instance.collection('sales').doc().id;
+      // Corregido: Usamos 0.0 para que sea double
+      double subtotal = widget.cart.fold(0.0, (sum, item) => sum + item.total);
+
+      batch.set(FirebaseFirestore.instance.collection('sales').doc(saleId), {
+        'customerName': nameCtrl.text,
+        'customerEmail': emailCtrl.text,
+        'total': subtotal * 1.16,
+        'status': 'Completada',
+        'date': FieldValue.serverTimestamp(),
+        'items': widget.cart.map((i) => {'name': i.product.name, 'qty': i.quantity}).toList(),
+      });
+
+      batch.set(FirebaseFirestore.instance.collection('customers').doc(emailCtrl.text), {
+        'name': nameCtrl.text,
+        'email': emailCtrl.text,
+        'phone': 'Sin registrar',
+        'lastPurchase': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      for (var item in widget.cart) {
+        batch.update(FirebaseFirestore.instance.collection('products').doc(item.product.id), {
+          'stock': FieldValue.increment(-item.quantity)
+        });
+      }
+
+      await batch.commit();
+      
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // Cerrar Loading
+        Navigator.pop(context); // Cerrar Dialogo Formulario
+        widget.onEmptyCart();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Pedido Confirmado"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating)
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("❌ Error de conexión")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    double subtotal = cart.fold(0, (sum, item) => sum + item.total);
-    double iva = subtotal * 0.16;
-    double total = subtotal + iva;
+    // Corregido: Usamos 0.0 aquí también
+    double total = widget.cart.fold(0.0, (sum, item) => sum + item.total) * 1.16;
 
-    if (cart.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shopping_basket_outlined, size: 80, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            const Text("Carrito vacío", style: TextStyle(fontSize: 18, color: Colors.grey)),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onGoToCatalog,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E3A8A),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text("Explorar", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
+    if (widget.cart.isEmpty) {
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.shopping_basket_outlined, size: 70, color: Colors.grey),
+        const SizedBox(height: 10),
+        const Text("Carrito Vacío"),
+        TextButton(onPressed: widget.onGoToCatalog, child: const Text("Ir a comprar"))
+      ]));
     }
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Mi Compra", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-              IconButton(onPressed: onEmptyCart, icon: const Icon(Icons.delete_sweep, color: Colors.red, size: 24)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ListView.builder(
-              itemCount: cart.length,
-              itemBuilder: (context, index) {
-                final item = cart[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(item.product.image, width: 45, height: 45, fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, size: 45)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              Text("\$${item.product.price} x ${item.quantity}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _actionBtn(Icons.remove_circle_outline, () => onUpdateQuantity(index, -1)),
-                            Text("${item.quantity}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            _actionBtn(Icons.add_circle_outline, () => onUpdateQuantity(index, 1)),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                        Text("\$${item.total.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text("Mi Compra", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            IconButton(onPressed: widget.onEmptyCart, icon: const Icon(Icons.delete_sweep, color: Colors.red))
+          ]),
+          Expanded(child: ListView.builder(
+            itemCount: widget.cart.length,
+            itemBuilder: (context, index) {
+              final item = widget.cart[index];
+              return ListTile(
+                leading: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.product.image, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.image))),
+                title: Text(item.product.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), maxLines: 1),
+                subtitle: Text("${item.quantity} x \$${item.product.price}"),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(icon: const Icon(Icons.remove_circle_outline, size: 18), onPressed: () => widget.onUpdateQuantity(index, -1)),
+                    Text("${item.quantity}"),
+                    IconButton(icon: const Icon(Icons.add_circle_outline, size: 18), onPressed: () => widget.onUpdateQuantity(index, 1)),
+                    const SizedBox(width: 10),
+                    Text("\$${item.total.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              );
+            }
+          )),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-            child: Column(
-              children: [
-                _miniRow("Subtotal", subtotal),
-                _miniRow("IVA (16%)", iva),
-                const Divider(height: 16),
-                _miniRow("TOTAL", total, isTotal: true),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onGoToCatalog,
-                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: Color(0xFF1E3A8A))),
-                        child: const Text("Seguir", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), padding: const EdgeInsets.symmetric(vertical: 12)),
-                        child: const Text("Pagar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                )
-              ],
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("TOTAL (IVA inc.)"), Text("\$${total.toStringAsFixed(2)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green))]),
+              const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: ElevatedButton(
+                onPressed: () => _showForm(),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+                child: const Text("PAGAR AHORA", style: TextStyle(color: Colors.white)),
+              ))
+            ]),
           )
         ],
       ),
     );
   }
 
-  Widget _actionBtn(IconData icon, VoidCallback tap) => IconButton(icon: Icon(icon, size: 20), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: tap);
-
-  Widget _miniRow(String label, double val, {bool isTotal = false}) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(label, style: TextStyle(fontSize: isTotal ? 16 : 13, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
-      Text("\$${val.toStringAsFixed(2)}", style: TextStyle(fontSize: isTotal ? 18 : 13, fontWeight: FontWeight.bold, color: isTotal ? Colors.green : Colors.black87)),
-    ],
-  );
+  void _showForm() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text("Datos de Entrega"),
+      content: Form(key: _formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Nombre"), validator: (v)=>v!.isEmpty?"Requerido":null),
+        TextFormField(controller: emailCtrl, decoration: const InputDecoration(labelText: "Email"), validator: (v)=>v!.isEmpty?"Requerido":null),
+      ]))),
+      actions: [
+        TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
+        ElevatedButton(onPressed: _finalizeOrder, child: const Text("Confirmar"))
+      ],
+    ));
+  }
 }

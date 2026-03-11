@@ -1,20 +1,5 @@
 import 'package:flutter/material.dart';
-
-class Sale {
-  final String id;
-  final String customer;
-  final String date;
-  final double total;
-  final String status;
-
-  Sale({
-    required this.id,
-    required this.customer,
-    required this.date,
-    required this.total,
-    required this.status,
-  });
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Sales extends StatefulWidget {
   const Sales({super.key});
@@ -24,80 +9,94 @@ class Sales extends StatefulWidget {
 }
 
 class _SalesState extends State<Sales> {
-  final List<Sale> sales = [
-    Sale(id: "ORD-001", customer: "Juan Perez", date: "2023-10-25", total: 1500.0, status: "Completada"),
-    Sale(id: "ORD-002", customer: "Maria Garcia", date: "2023-10-26", total: 850.5, status: "Pendiente"),
-    Sale(id: "ORD-003", customer: "Carlos Lopez", date: "2023-10-26", total: 2100.0, status: "Completada"),
-    Sale(id: "ORD-004", customer: "Ana Martinez", date: "2023-10-27", total: 450.0, status: "Cancelada"),
-  ];
+  final CollectionReference salesRef = FirebaseFirestore.instance.collection('sales');
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Ventas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          
-          isMobile 
-            ? Column(
-                children: [
-                  _statItem(Icons.check_circle, "Completas", "3", Colors.green),
-                  const SizedBox(height: 8),
-                  _statItem(Icons.pending, "Pendientes", "1", Colors.orange),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(child: _statItem(Icons.check_circle, "Ventas Completas", "3", Colors.green)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _statItem(Icons.pending, "Ventas Pendientes", "1", Colors.orange)),
-                ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: salesRef.orderBy('date', descending: true).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+        final docs = snapshot.data!.docs;
+        final completedSales = docs.where((s) => s['status'] == 'Completada').length;
+        double totalRevenue = 0;
+        for (var doc in docs) {
+          totalRevenue += (doc['total'] ?? 0).toDouble();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Ventas Reales", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text("Historial de pedidos en la nube", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 20),
+              
+              isMobile 
+                ? Column(
+                    children: [
+                      _statItem(Icons.check_circle, "Completas", completedSales.toString(), Colors.green),
+                      const SizedBox(height: 8),
+                      _statItem(Icons.monetization_on, "Ingresos", "\$${totalRevenue.toStringAsFixed(0)}", Colors.blue),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: _statItem(Icons.check_circle, "Ventas Completadas", completedSales.toString(), Colors.green)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _statItem(Icons.monetization_on, "Total Ingresos", "\$${totalRevenue.toStringAsFixed(0)}", Colors.blue)),
+                    ],
+                  ),
+              
+              const SizedBox(height: 24),
+              
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  child: DataTable(
+                    horizontalMargin: 12,
+                    columnSpacing: 15,
+                    headingRowHeight: 45,
+                    dataRowHeight: 55,
+                    columns: const [
+                      DataColumn(label: Text("Cliente", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Total", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Estado", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: docs.map((doc) {
+                      return DataRow(cells: [
+                        DataCell(SizedBox(width: 100, child: Text(doc['customerName'] ?? 'Anónimo', style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
+                        DataCell(Text("\$${(doc['total'] ?? 0).toStringAsFixed(0)}", style: const TextStyle(fontSize: 11))),
+                        DataCell(_statusBadge(doc['status'] ?? 'Pendiente')),
+                        DataCell(IconButton(
+                          icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                          onPressed: () => salesRef.doc(doc.id).delete(),
+                        )),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
               ),
-          
-          const SizedBox(height: 24),
-          
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: DataTable(
-                horizontalMargin: 12,
-                columnSpacing: 15,
-                headingRowHeight: 45,
-                columns: const [
-                  DataColumn(label: Text("ID", style: TextStyle(fontSize: 12))),
-                  DataColumn(label: Text("Cliente", style: TextStyle(fontSize: 12))),
-                  DataColumn(label: Text("Total", style: TextStyle(fontSize: 12))),
-                  DataColumn(label: Text("Estado", style: TextStyle(fontSize: 12))),
-                ],
-                rows: sales.map((sale) {
-                  return DataRow(cells: [
-                    DataCell(Text(sale.id, style: const TextStyle(fontSize: 11))),
-                    DataCell(SizedBox(width: 80, child: Text(sale.customer, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
-                    DataCell(Text("\$${sale.total.toStringAsFixed(0)}", style: const TextStyle(fontSize: 11))),
-                    DataCell(_statusBadge(sale.status)),
-                  ]);
-                }).toList(),
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _statItem(IconData icon, String title, String val, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)]),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: color.withOpacity(0.1), radius: 18, child: Icon(icon, color: color, size: 18)),
+          CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,10 +111,10 @@ class _SalesState extends State<Sales> {
   }
 
   Widget _statusBadge(String status) {
-    Color col = status == "Completada" ? Colors.green : (status == "Pendiente" ? Colors.orange : Colors.red);
+    Color col = status == "Completada" ? Colors.green : Colors.orange;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: col.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: col.withAlpha(26), borderRadius: BorderRadius.circular(6)),
       child: Text(status, style: TextStyle(color: col, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
