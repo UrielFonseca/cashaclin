@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/customer_repository.dart';
 
 class Customers extends StatefulWidget {
   const Customers({super.key});
@@ -9,8 +9,21 @@ class Customers extends StatefulWidget {
 }
 
 class _CustomersState extends State<Customers> {
-  final CollectionReference customersRef = FirebaseFirestore.instance.collection('customers');
+  final CustomerRepository _repository = CustomerRepository();
   String searchTerm = '';
+  late Future<List<Map<String, dynamic>>> _customersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _customersFuture = _repository.getCustomers();
+    });
+  }
 
   void _showCustomerDialog({String? docId, Map<String, dynamic>? data}) {
     final nameController = TextEditingController(text: data?['name'] ?? '');
@@ -36,17 +49,14 @@ class _CustomersState extends State<Customers> {
           ElevatedButton(
             onPressed: () async {
               final payload = {
+                'id': docId,
                 'name': nameController.text,
                 'email': emailController.text,
                 'phone': phoneController.text,
-                'lastUpdate': FieldValue.serverTimestamp(),
               };
-              if (docId == null) {
-                await customersRef.add(payload);
-              } else {
-                await customersRef.doc(docId).update(payload);
-              }
+              await _repository.addCustomer(payload);
               Navigator.pop(context);
+              _refresh();
             },
             child: const Text("Guardar"),
           ),
@@ -64,11 +74,11 @@ class _CustomersState extends State<Customers> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("Clientes", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -80,10 +90,8 @@ class _CustomersState extends State<Customers> {
               )
             ],
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: TextField(
+          const SizedBox(height: 16),
+          TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search, size: 20),
               hintText: "Buscar cliente...",
@@ -94,49 +102,48 @@ class _CustomersState extends State<Customers> {
             ),
             onChanged: (v) => setState(() => searchTerm = v),
           ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: customersRef.snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              
-              final docs = snapshot.data!.docs.where((doc) {
-                return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
-              }).toList();
+          const SizedBox(height: 16),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _customersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text("No hay clientes (API)");
+                
+                final docs = snapshot.data!.where((doc) {
+                  return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+                }).toList();
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: DataTable(
-                    horizontalMargin: 12,
-                    columnSpacing: 15,
-                    headingRowHeight: 45,
-                    columns: const [
-                      DataColumn(label: Text("Nombre", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Teléfono", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                    ],
-                    rows: docs.map((doc) => DataRow(cells: [
-                      DataCell(SizedBox(width: 100, child: Text(doc['name'], style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
-                      DataCell(Text(doc['phone'], style: const TextStyle(fontSize: 11))),
-                      DataCell(Row(
-                        children: [
-                          IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.blue), onPressed: () => _showCustomerDialog(docId: doc.id, data: doc.data() as Map<String, dynamic>)),
-                          IconButton(icon: const Icon(Icons.delete, size: 16, color: Colors.red), onPressed: () => customersRef.doc(doc.id).delete()),
-                        ],
-                      )),
-                    ])).toList(),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                    child: DataTable(
+                      horizontalMargin: 12,
+                      columnSpacing: 15,
+                      headingRowHeight: 45,
+                      columns: const [
+                        DataColumn(label: Text("Nombre", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Teléfono", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      ],
+                      rows: docs.map((doc) => DataRow(cells: [
+                        DataCell(SizedBox(width: 100, child: Text(doc['name'], style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
+                        DataCell(Text(doc['phone'] ?? '', style: const TextStyle(fontSize: 11))),
+                        DataCell(Row(
+                          children: [
+                            IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.blue), onPressed: () => _showCustomerDialog(docId: doc['id'], data: doc)),
+                          ],
+                        )),
+                      ])).toList(),
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],  
+      ),
     );
   }
 }

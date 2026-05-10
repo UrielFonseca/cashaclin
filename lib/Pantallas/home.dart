@@ -1,7 +1,29 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final AuthService _authService = AuthService();
+  String? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  void _checkRole() async {
+    final role = await _authService.getRole();
+    setState(() {
+      _userRole = role;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +45,12 @@ class HomePage extends StatelessWidget {
             Positioned(
               top: -150,
               left: -100,
-              child: _buildGlowCircle(300, const Color(0x4D448AFF)), // BlueAccent con opacity 0.3 en Hex
+              child: _buildGlowCircle(300, const Color(0x4D448AFF)),
             ),
             Positioned(
               bottom: -150,
               left: 120,
-              child: _buildGlowCircle(300, const Color(0x4D03A9F4)), // LightBlue con opacity 0.3 en Hex
+              child: _buildGlowCircle(300, const Color(0x4D03A9F4)),
             ),
 
             SafeArea(
@@ -41,6 +63,7 @@ class HomePage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(110),
                       child: Container(
                         color: Colors.white,
+                        padding: const EdgeInsets.all(10),
                         child: Image.asset(
                           'assets/images/casha_clin_logo.jpg',
                           width: 180,
@@ -52,50 +75,63 @@ class HomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 30),
                     const Text(
-                      "Productos de Limpieza Especializados",
-                      style: TextStyle(fontSize: 22, color: Colors.yellowAccent, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
+                      "Casha Clin Pro",
+                      style: TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 12),
                     const Text(
-                      "Tu proveedor de confianza en artículos de limpieza para el hogar y empresas",
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                      "Productos de Limpieza Especializados",
+                      style: TextStyle(fontSize: 18, color: Colors.yellowAccent, fontWeight: FontWeight.w500),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 40),
 
+                    // 🛡️ MOSTRAR SOLO SI ES ADMIN
+                    if (_userRole == 'admin') ...[
+                      _mainCard(
+                        context,
+                        icon: Icons.admin_panel_settings,
+                        title: "Panel de Administración",
+                        description: "Gestión de stock, ventas y clientes",
+                        color1: const Color(0xFF3B82F6),
+                        color2: const Color(0xFF2563EB),
+                        onTap: () => Navigator.pushNamed(context, "/admin"),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     _mainCard(
                       context,
-                      icon: Icons.dashboard,
-                      title: "Panel de Administración",
-                      description: "Gestiona productos, inventario, clientes y ventas",
-                      color1: const Color(0xFF3B82F6),
-                      color2: const Color(0xFF2563EB),
-                      onTap: () => Navigator.pushNamed(context, "/admin"),
-                    ),
-                    const SizedBox(height: 20),
-                    _mainCard(
-                      context,
-                      icon: Icons.shopping_cart,
+                      icon: Icons.shopping_bag,
                       title: "Tienda en Línea",
-                      description: "Compra al menudeo o mayoreo con precios especiales",
+                      description: "Explora nuestro catálogo y realiza pedidos",
                       color1: const Color(0xFFFACC15),
                       color2: const Color(0xFFEAB308),
                       onTap: () => Navigator.pushNamed(context, "/shop"),
                     ),
+
                     const SizedBox(height: 40),
 
                     _featureCard(
-                      icon: Icons.store,
-                      title: "Productos Especializados",
-                      description: "Amplio catálogo de productos profesionales",
+                      icon: Icons.security,
+                      title: "Garantía de Calidad",
+                      description: "Productos certificados para uso industrial y hogar",
                     ),
                     const SizedBox(height: 16),
                     _featureCard(
-                      icon: Icons.attach_money,
-                      title: "Precios Accesibles",
-                      description: "Mejores precios para el hogar y empresas",
+                      icon: Icons.local_shipping,
+                      title: "Entregas Rápidas",
+                      description: "Surtimos tu pedido en tiempo récord",
                     ),
+                    
+                    const SizedBox(height: 20),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await _authService.logout();
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      icon: const Icon(Icons.logout, color: Colors.white70),
+                      label: const Text("Cerrar Sesión", style: TextStyle(color: Colors.white70)),
+                    )
                   ],
                 ),
               ),
@@ -132,7 +168,7 @@ class HomePage extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+          boxShadow: [BoxShadow(color: const Color(0x42000000), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           children: [
@@ -159,12 +195,12 @@ class HomePage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF), // Blanco sólido
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: Colors.blue.shade100, child: Icon(icon, color: Colors.blue)),
+          CircleAvatar(backgroundColor: const Color(0xFFE3F2FD), child: Icon(icon, color: Colors.blue)),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

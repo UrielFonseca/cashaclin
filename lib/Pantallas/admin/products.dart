@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/product_repository.dart';
 import '../models/product_model.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -10,68 +10,72 @@ class ProductsPage extends StatefulWidget {
 }
 
 class _ProductsPageState extends State<ProductsPage> {
-  final CollectionReference productsRef = FirebaseFirestore.instance.collection('products');
+  final ProductRepository _repository = ProductRepository();
   String searchTerm = '';
+  late Future<List<Product>> _productsFuture;
 
-  void _showProductDialog({Product? product, String? docId}) {
+  @override
+  void initState() {
+    super.initState();
+    _refreshProducts();
+  }
+
+  void _refreshProducts() {
+    setState(() {
+      _productsFuture = _repository.getProducts();
+    });
+  }
+
+  void _showProductDialog({Product? product}) {
     final nameController = TextEditingController(text: product?.name ?? '');
     final skuController = TextEditingController(text: product?.sku ?? '');
-    final categoryController = TextEditingController(text: product?.category ?? '');
-    final descController = TextEditingController(text: product?.description ?? '');
     final priceController = TextEditingController(text: product?.price.toString() ?? '0.0');
     final stockController = TextEditingController(text: product?.stock.toString() ?? '0');
-    final imageController = TextEditingController(text: product?.image ?? '');
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(docId == null ? "Nuevo Producto" : "Editar Producto"),
+        title: Text(product == null ? "Nuevo Producto" : "Editar Producto"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _field(nameController, "Nombre"),
-              _field(skuController, "SKU"),
-              _field(categoryController, "Categoría"),
-              _field(descController, "Descripción", maxLines: 2),
-              _field(priceController, "Precio", type: TextInputType.number),
-              _field(stockController, "Stock", type: TextInputType.number),
-              _field(imageController, "URL Imagen"),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: "Nombre")),
+              TextField(controller: skuController, decoration: const InputDecoration(labelText: "SKU")),
+              TextField(controller: priceController, decoration: const InputDecoration(labelText: "Precio"), keyboardType: TextInputType.number),
+              TextField(controller: stockController, decoration: const InputDecoration(labelText: "Stock"), keyboardType: TextInputType.number),
             ],
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-          ElevatedButton(onPressed: () async {
-            if (nameController.text.isEmpty) return;
-            final data = {
-              'name': nameController.text,
-              'sku': skuController.text,
-              'category': categoryController.text,
-              'description': descController.text,
-              'price': double.tryParse(priceController.text) ?? 0.0,
-              'stock': int.tryParse(stockController.text) ?? 0,
-              'image': imageController.text,
-            };
-            if (docId == null) await productsRef.add(data);
-            else await productsRef.doc(docId).update(data);
-            if (mounted) Navigator.pop(context);
-          }, child: const Text("Guardar"))
+          ElevatedButton(
+            onPressed: () async {
+              final p = Product(
+                id: product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                name: nameController.text,
+                sku: skuController.text,
+                category: "General",
+                image: product?.image ?? "https://via.placeholder.com/150",
+                price: double.tryParse(priceController.text) ?? 0.0,
+                stock: int.tryParse(stockController.text) ?? 0,
+              );
+              await _repository.addProduct(p);
+              Navigator.pop(context);
+              _refreshProducts();
+            },
+            child: const Text("Guardar"),
+          ),
         ],
       ),
     );
   }
 
-  Widget _field(TextEditingController c, String l, {int maxLines = 1, TextInputType type = TextInputType.text}) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: TextField(controller: c, maxLines: maxLines, keyboardType: type, decoration: InputDecoration(labelText: l, border: const OutlineInputBorder(), isDense: true)),
-  );
-
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
@@ -79,36 +83,29 @@ class _ProductsPageState extends State<ProductsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("Productos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              ElevatedButton.icon(onPressed: () => _showProductDialog(), icon: const Icon(Icons.add, size: 18), label: const Text("Nuevo")),
+              ElevatedButton.icon(onPressed: () => _showProductDialog(), icon: const Icon(Icons.add), label: const Text("Nuevo")),
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 20), hintText: "Buscar...", filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), isDense: true),
-            onChanged: (v) => setState(() => searchTerm = v),
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: productsRef.snapshots(),
+          FutureBuilder<List<Product>>(
+            future: _productsFuture,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final docs = snapshot.data!.docs.where((d) => d['name'].toString().toLowerCase().contains(searchTerm.toLowerCase())).toList();
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text("No hay productos (Configura tu API REST)");
               
+              final products = snapshot.data!.where((p) => p.name.toLowerCase().contains(searchTerm.toLowerCase())).toList();
+
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: isMobile ? 180 : 250,
-                  childAspectRatio: isMobile ? 0.52 : 0.65,
+                  childAspectRatio: 0.6,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
-                itemCount: docs.length,
-                itemBuilder: (context, index) {
-                  final d = docs[index];
-                  final p = Product(id: d.id, name: d['name'], sku: d['sku'], category: d['category'], description: d['description'], price: d['price'].toDouble(), stock: d['stock'], image: d['image']);
-                  return _card(p, d.id);
-                },
+                itemCount: products.length,
+                itemBuilder: (context, index) => _card(products[index]),
               );
             },
           )
@@ -117,35 +114,22 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
-  Widget _card(Product p, String id) {
+  Widget _card(Product p) {
     return Card(
-      elevation: 1,
-      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 3, child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(p.image, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Center(child: Icon(Icons.image, color: Colors.grey))))),
+          Expanded(child: Image.network(p.image, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.image))),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            padding: const EdgeInsets.all(8.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text("\$${p.price.toStringAsFixed(0)}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 4),
+                Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1),
+                Text("\$${p.price}"),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text("Stock: ${p.stock}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                    Row(
-                      children: [
-                        GestureDetector(onTap: () => _showProductDialog(product: p, docId: id), child: const Icon(Icons.edit, size: 16, color: Colors.blue)),
-                        const SizedBox(width: 10),
-                        GestureDetector(onTap: () => productsRef.doc(id).delete(), child: const Icon(Icons.delete, size: 16, color: Colors.red)),
-                      ],
-                    )
+                    IconButton(icon: const Icon(Icons.edit, size: 18, color: Colors.blue), onPressed: () => _showProductDialog(product: p)),
                   ],
                 )
               ],

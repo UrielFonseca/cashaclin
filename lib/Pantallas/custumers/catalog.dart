@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/product_repository.dart';
 import '../models/product_model.dart';
 
 class CatalogPage extends StatefulWidget {
@@ -11,9 +11,22 @@ class CatalogPage extends StatefulWidget {
 }
 
 class _CatalogPageState extends State<CatalogPage> {
+  final ProductRepository _repository = ProductRepository();
   String searchTerm = '';
   String selectedCategory = 'Todos';
-  final CollectionReference productsRef = FirebaseFirestore.instance.collection('products');
+  late Future<List<Product>> _productsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshProducts();
+  }
+
+  void _refreshProducts() {
+    setState(() {
+      _productsFuture = _repository.getProducts();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,14 +69,16 @@ class _CatalogPageState extends State<CatalogPage> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: productsRef.snapshots(),
+            child: FutureBuilder<List<Product>>(
+              future: _productsFuture,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Sin productos en el catálogo"));
 
-                final products = snapshot.data!.docs.where((doc) {
-                  final matchesSearch = doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
-                  final matchesCat = selectedCategory == 'Todos' || doc['category'] == selectedCategory;
+                final products = snapshot.data!.where((p) {
+                  final matchesSearch = p.name.toLowerCase().contains(searchTerm.toLowerCase());
+                  final matchesCat = selectedCategory == 'Todos' || p.category == selectedCategory;
                   return matchesSearch && matchesCat;
                 }).toList();
 
@@ -75,20 +90,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     mainAxisSpacing: 12,
                   ),
                   itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final doc = products[index];
-                    final product = Product(
-                      id: doc.id,
-                      name: doc['name'],
-                      sku: doc['sku'],
-                      category: doc['category'],
-                      description: doc['description'],
-                      price: doc['price'].toDouble(),
-                      stock: doc['stock'],
-                      image: doc['image'],
-                    );
-                    return _productCard(product);
-                  },
+                  itemBuilder: (context, index) => _productCard(products[index]),
                 );
               },
             ),
@@ -112,7 +114,7 @@ class _CatalogPageState extends State<CatalogPage> {
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Image.network(product.image, width: double.infinity, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported)),
+                  errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, color: Colors.grey))),
               ),
             ),
             Expanded(

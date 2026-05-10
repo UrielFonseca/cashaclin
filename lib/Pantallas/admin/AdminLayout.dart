@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 
 class AdminLayout extends StatefulWidget {
   final Widget child;
@@ -18,6 +19,15 @@ class _AdminLayoutState extends State<AdminLayout> {
     _NavItem("Ventas", Icons.shopping_bag, "/admin/sales"),
   ];
 
+  final AuthService _authService = AuthService();
+
+  void _handleLogout() async {
+    await _authService.logout();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
@@ -31,9 +41,17 @@ class _AdminLayoutState extends State<AdminLayout> {
         backgroundColor: const Color(0xFF1E3A8A),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Botón para volver al Home
           IconButton(
             onPressed: () => Navigator.pushReplacementNamed(context, "/"),
+            icon: const Icon(Icons.home),
+            tooltip: "Inicio",
+          ),
+          // Botón de Cerrar Sesión JWT
+          IconButton(
+            onPressed: _handleLogout,
             icon: const Icon(Icons.logout),
+            tooltip: "Cerrar Sesión",
           ),
         ],
       ),
@@ -41,7 +59,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       body: Row(
         children: [
           if (!isMobile) _buildSidebar(currentRoute),
-          Expanded(child: widget.child), // Eliminamos el ScrollView de aquí
+          Expanded(child: widget.child),
         ],
       ),
     );

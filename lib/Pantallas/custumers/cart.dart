@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/sale_repository.dart';
+import '../../repositories/product_repository.dart';
 import '../models/cart_model.dart';
 
 class CartPage extends StatefulWidget {
@@ -18,63 +19,47 @@ class _CartPageState extends State<CartPage> {
   final _formKey = GlobalKey<FormState>();
   final nameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
+  final SaleRepository _saleRepo = SaleRepository();
+  final ProductRepository _productRepo = ProductRepository();
 
   Future<void> _finalizeOrder() async {
     if (!_formKey.currentState!.validate()) return;
 
-    showDialog(
-      context: context, 
-      barrierDismissible: false, 
-      builder: (context) => const Center(child: CircularProgressIndicator())
-    );
+    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
 
     try {
-      final batch = FirebaseFirestore.instance.batch();
-      final saleId = FirebaseFirestore.instance.collection('sales').doc().id;
-      // Corregido: Usamos 0.0 para que sea double
       double subtotal = widget.cart.fold(0.0, (sum, item) => sum + item.total);
 
-      batch.set(FirebaseFirestore.instance.collection('sales').doc(saleId), {
+      // Enviar pedido a la API
+      await _saleRepo.createSale({
         'customerName': nameCtrl.text,
         'customerEmail': emailCtrl.text,
         'total': subtotal * 1.16,
         'status': 'Completada',
-        'date': FieldValue.serverTimestamp(),
-        'items': widget.cart.map((i) => {'name': i.product.name, 'qty': i.quantity}).toList(),
+        'items': widget.cart.map((i) => {'productId': i.product.id, 'qty': i.quantity}).toList(),
       });
 
-      batch.set(FirebaseFirestore.instance.collection('customers').doc(emailCtrl.text), {
-        'name': nameCtrl.text,
-        'email': emailCtrl.text,
-        'phone': 'Sin registrar',
-        'lastPurchase': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
+      // Actualizar stock localmente (la API también debería hacerlo en el back)
       for (var item in widget.cart) {
-        batch.update(FirebaseFirestore.instance.collection('products').doc(item.product.id), {
-          'stock': FieldValue.increment(-item.quantity)
-        });
+        await _productRepo.updateStock(item.product.id, item.product.stock - item.quantity);
       }
 
-      await batch.commit();
-      
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); // Cerrar Loading
-        Navigator.pop(context); // Cerrar Dialogo Formulario
+        Navigator.pop(context); // Cerrar Formulario
         widget.onEmptyCart();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Pedido Confirmado"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating)
+          const SnackBar(content: Text("✅ Pedido Sincronizado vía API"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating)
         );
       }
     } catch (e) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("❌ Error de conexión")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("❌ Error al conectar con el servidor")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Corregido: Usamos 0.0 aquí también
     double total = widget.cart.fold(0.0, (sum, item) => sum + item.total) * 1.16;
 
     if (widget.cart.isEmpty) {
@@ -102,16 +87,7 @@ class _CartPageState extends State<CartPage> {
                 leading: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.product.image, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.image))),
                 title: Text(item.product.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), maxLines: 1),
                 subtitle: Text("${item.quantity} x \$${item.product.price}"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline, size: 18), onPressed: () => widget.onUpdateQuantity(index, -1)),
-                    Text("${item.quantity}"),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, size: 18), onPressed: () => widget.onUpdateQuantity(index, 1)),
-                    const SizedBox(width: 10),
-                    Text("\$${item.total.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
+                trailing: Text("\$${item.total.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold)),
               );
             }
           )),

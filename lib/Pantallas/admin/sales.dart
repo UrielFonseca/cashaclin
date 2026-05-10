@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/sale_repository.dart';
 
 class Sales extends StatefulWidget {
   const Sales({super.key});
@@ -9,18 +9,33 @@ class Sales extends StatefulWidget {
 }
 
 class _SalesState extends State<Sales> {
-  final CollectionReference salesRef = FirebaseFirestore.instance.collection('sales');
+  final SaleRepository _repository = SaleRepository();
+  late Future<List<Map<String, dynamic>>> _salesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _salesFuture = _repository.getSales();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: salesRef.orderBy('date', descending: true).snapshots(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _salesFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-        final docs = snapshot.data!.docs;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final docs = snapshot.data ?? [];
         final completedSales = docs.where((s) => s['status'] == 'Completada').length;
         double totalRevenue = 0;
         for (var doc in docs) {
@@ -33,7 +48,7 @@ class _SalesState extends State<Sales> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text("Ventas Reales", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const Text("Historial de pedidos en la nube", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const Text("Historial sincronizado vía API", style: TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 20),
               
               isMobile 
@@ -67,17 +82,12 @@ class _SalesState extends State<Sales> {
                       DataColumn(label: Text("Cliente", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Total", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Estado", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                     ],
                     rows: docs.map((doc) {
                       return DataRow(cells: [
                         DataCell(SizedBox(width: 100, child: Text(doc['customerName'] ?? 'Anónimo', style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
                         DataCell(Text("\$${(doc['total'] ?? 0).toStringAsFixed(0)}", style: const TextStyle(fontSize: 11))),
                         DataCell(_statusBadge(doc['status'] ?? 'Pendiente')),
-                        DataCell(IconButton(
-                          icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                          onPressed: () => salesRef.doc(doc.id).delete(),
-                        )),
                       ]);
                     }).toList(),
                   ),

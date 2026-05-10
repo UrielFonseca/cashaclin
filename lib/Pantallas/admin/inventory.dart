@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/product_repository.dart';
+import '../models/product_model.dart';
 
 class Inventory extends StatefulWidget {
   const Inventory({super.key});
@@ -9,29 +10,40 @@ class Inventory extends StatefulWidget {
 }
 
 class _InventoryState extends State<Inventory> {
+  final ProductRepository _repository = ProductRepository();
   String searchTerm = '';
-  final CollectionReference productsRef = FirebaseFirestore.instance.collection('products');
+  late Future<List<Product>> _productsFuture;
 
-  void updateStock(String docId, int currentStock, int change) {
-    productsRef.doc(docId).update({
-      'stock': (currentStock + change).clamp(0, 9999),
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _productsFuture = _repository.getProducts();
     });
+  }
+
+  void _updateStock(String id, int currentStock, int delta) async {
+    int newStock = (currentStock + delta).clamp(0, 9999);
+    await _repository.updateStock(id, newStock);
+    _refresh();
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: productsRef.snapshots(),
+    return FutureBuilder<List<Product>>(
+      future: _productsFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-        final docs = snapshot.data!.docs.where((doc) {
-          return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
-        }).toList();
-
-        final totalUnits = snapshot.data!.docs.fold<int>(0, (sum, doc) => sum + (doc['stock'] as int));
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        
+        final products = snapshot.data ?? [];
+        final filtered = products.where((p) => p.name.toLowerCase().contains(searchTerm.toLowerCase())).toList();
+        final totalUnits = products.fold<int>(0, (sum, p) => sum + p.stock);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -39,30 +51,26 @@ class _InventoryState extends State<Inventory> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text("Inventario Real", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const Text("Sincronizado con la tienda", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const Text("Control sincronizado vía API", style: TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 20),
               
               isMobile 
-                ? Column(
-                    children: [
-                      _statItem(Icons.inventory_2, "Unidades Totales", totalUnits.toString(), Colors.blue),
-                      const SizedBox(height: 8),
-                      _statItem(Icons.category, "SKUs Activos", docs.length.toString(), Colors.orange),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: _statItem(Icons.inventory_2, "Unidades Totales", totalUnits.toString(), Colors.blue)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _statItem(Icons.category, "SKUs Activos", docs.length.toString(), Colors.orange)),
-                    ],
-                  ),
+                ? Column(children: [
+                    _statItem(Icons.inventory_2, "Total Unidades", totalUnits.toString(), Colors.blue),
+                    const SizedBox(height: 8),
+                    _statItem(Icons.category, "Productos", products.length.toString(), Colors.orange),
+                  ])
+                : Row(children: [
+                    Expanded(child: _statItem(Icons.inventory_2, "Total Unidades", totalUnits.toString(), Colors.blue)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _statItem(Icons.category, "Productos Activos", products.length.toString(), Colors.orange)),
+                  ]),
               
               const SizedBox(height: 24),
               TextField(
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search, size: 20),
-                  hintText: "Buscar producto...",
+                  hintText: "Buscar...",
                   isDense: true,
                   filled: true,
                   fillColor: Colors.white,
@@ -75,31 +83,28 @@ class _InventoryState extends State<Inventory> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)]),
                   child: DataTable(
                     horizontalMargin: 12,
                     columnSpacing: 20,
                     headingRowHeight: 50,
-                   // dataRowHeight: 60,
+                    dataRowHeight: 60,
                     columns: const [
                       DataColumn(label: Text("Producto", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Stock", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Ajuste", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                     ],
-                    rows: docs.map((doc) {
-                      final int stock = doc['stock'];
-                      return DataRow(cells: [
-                        DataCell(SizedBox(width: 100, child: Text(doc['name'], style: const TextStyle(fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis))),
-                        DataCell(Text("$stock", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: stock <= 10 ? Colors.red : Colors.black87))),
-                        DataCell(Row(
-                          children: [
-                            _actionBtn("-", () => updateStock(doc.id, stock, -1), const Color(0xFFFFEBEE), Colors.red),
-                            const SizedBox(width: 8),
-                            _actionBtn("+", () => updateStock(doc.id, stock, 1), const Color(0xFFE3F2FD), Colors.blue),
-                          ],
-                        )),
-                      ]);
-                    }).toList(),
+                    rows: filtered.map((p) => DataRow(cells: [
+                      DataCell(SizedBox(width: 100, child: Text(p.name, style: const TextStyle(fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                      DataCell(Text("${p.stock}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: p.stock <= 10 ? Colors.red : Colors.black87))),
+                      DataCell(Row(
+                        children: [
+                          _actionBtn("-", () => _updateStock(p.id, p.stock, -1), const Color(0xFFFFEBEE), Colors.red),
+                          const SizedBox(width: 8),
+                          _actionBtn("+", () => _updateStock(p.id, p.stock, 1), const Color(0xFFE3F2FD), Colors.blue),
+                        ],
+                      )),
+                    ])).toList(),
                   ),
                 ),
               ),
@@ -114,16 +119,14 @@ class _InventoryState extends State<Inventory> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)]),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ])
-        ],
-      ),
+      child: Row(children: [
+        CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
+        const SizedBox(width: 12),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ])
+      ]),
     );
   }
 
