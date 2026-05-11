@@ -153,9 +153,9 @@ app.post('/api/sales', async (req, res) => {
 // --- INICIO DEL SERVIDOR ---
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("🟢 Conectado a MongoDB Atlas");
+        console.log("Conectado a MongoDB Atlas");
         app.listen(3000, '0.0.0.0', () => {
             console.log("🚀 Servidor Casha Clin Pro en puerto 3000");
         });
     })
-    .catch(err => console.error("🔴 Error al conectar MongoDB:", err));
+    .catch(err => console.error("Error al conectar MongoDB:", err));

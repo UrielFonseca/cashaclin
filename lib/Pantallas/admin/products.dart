@@ -154,32 +154,6 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
-  /* Widget _c1ard(Product p) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Expanded(child: Image.network(p.image, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.image))),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1),
-                Text("\$${p.price}"),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(icon: const Icon(Icons.edit, size: 18, color: Colors.blue), onPressed: () => _showProductDialog(product: p)),
-                  ],
-                )
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }//widget _card
-*/
   Widget _card(Product product) {
     int quantity = 1;
     return StatefulBuilder(
