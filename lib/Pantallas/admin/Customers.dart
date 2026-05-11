@@ -45,7 +45,10 @@ class _CustomersState extends State<Customers> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
           ElevatedButton(
             onPressed: () async {
               final payload = {
@@ -67,7 +70,13 @@ class _CustomersState extends State<Customers> {
 
   Widget _field(TextEditingController ctrl, String label) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(controller: ctrl, decoration: InputDecoration(labelText: label, border: const OutlineInputBorder())),
+    child: TextField(
+      controller: ctrl,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    ),
   );
 
   @override
@@ -81,13 +90,19 @@ class _CustomersState extends State<Customers> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Clientes", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text(
+                "Clientes",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
               ElevatedButton.icon(
                 onPressed: () => _showCustomerDialog(),
                 icon: const Icon(Icons.add),
                 label: const Text("Nuevo"),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
-              )
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A),
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -98,7 +113,10 @@ class _CustomersState extends State<Customers> {
               isDense: true,
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
             onChanged: (v) => setState(() => searchTerm = v),
           ),
@@ -107,42 +125,107 @@ class _CustomersState extends State<Customers> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _customersFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text("No hay clientes (API)");
-                
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || snapshot.data!.isEmpty)
+                  return const Text("No hay clientes (API)");
+
                 final docs = snapshot.data!.where((doc) {
-                  return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+                  return doc['name'].toString().toLowerCase().contains(
+                    searchTerm.toLowerCase(),
+                  );
                 }).toList();
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                    child: DataTable(
-                      horizontalMargin: 12,
-                      columnSpacing: 15,
-                      headingRowHeight: 45,
-                      columns: const [
-                        DataColumn(label: Text("Nombre", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                        DataColumn(label: Text("Teléfono", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                        DataColumn(label: Text("Acción", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      ],
-                      rows: docs.map((doc) => DataRow(cells: [
-                        DataCell(SizedBox(width: 100, child: Text(doc['name'], style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
-                        DataCell(Text(doc['phone'] ?? '', style: const TextStyle(fontSize: 11))),
-                        DataCell(Row(
-                          children: [
-                            IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.blue), onPressed: () => _showCustomerDialog(docId: doc['id'], data: doc)),
-                          ],
-                        )),
-                      ])).toList(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: MediaQuery.of(context).size.width - 32,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DataTable(
+                        horizontalMargin: 12,
+                        columnSpacing: 15,
+                        headingRowHeight: 45,
+                        columns: const [
+                          DataColumn(
+                            label: Text(
+                              "Nombre",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              "Teléfono",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              "Acción",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                        rows: docs
+                            .map(
+                              (doc) => DataRow(
+                                cells: [
+                                  DataCell(
+                                    SizedBox(
+                                      width: 100,
+                                      child: Text(
+                                        doc['name'],
+                                        style: const TextStyle(fontSize: 11),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      doc['phone'] ?? '',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        size: 16,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () => _showCustomerDialog(
+                                        docId: doc['id'],
+                                        data: doc,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
                 );
               },
             ),
           ),
-        ],  
+        ],
       ),
     );
   }
