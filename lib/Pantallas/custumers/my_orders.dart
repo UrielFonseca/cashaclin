@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../repositories/sale_repository.dart';
 
+/*
+  Pantalla de Seguimiento de Pedidos:
+  Permite al cliente visualizar el estado de sus transacciones y solicitudes especiales.
+  Implementa un flujo de negociación en tiempo real mediante un sistema de mensajería interna.
+*/
 class MyOrdersPage extends StatefulWidget {
   const MyOrdersPage({super.key});
 
@@ -16,9 +21,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializa la carga de pedidos vinculados a la cuenta actual.
     _load();
   }
 
+  /// Recupera los pedidos asociados al usuario autenticado mediante su token JWT.
   void _load() async {
     setState(() => _isLoading = true);
     try {
@@ -27,7 +34,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error al cargar tus pedidos")),
+          const SnackBar(content: Text("Error operativo: No se pudo sincronizar el historial de pedidos.")),
         );
       }
     } finally {
@@ -35,39 +42,48 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
     }
   }
 
+  /*
+    Diálogo de Negociación y Detalle:
+    Muestra el desglose del pedido y permite al usuario aceptar cotizaciones 
+    o enviar mensajes de respuesta a la administración.
+  */
   void _showNegotiation(Map<String, dynamic> order) {
     final msgCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(order['type'] == 'especial' ? "Negociación de Pedido" : "Detalle de Compra"),
+        title: Text(order['type'] == 'especial' ? "Negociación de Pedido Especial" : "Detalle de Transacción"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Estado: ${order['status']}",
+              Text("Estatus Actual: ${order['status']}",
                   style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text("Total Cotizado: \$${order['total']}",
-                  style: const TextStyle(fontSize: 18, color: Colors.green)),
+              Text("Monto Cotizado: \$${order['total']}",
+                  style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
               const Divider(),
-              const Text("Mensajes:",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Bitácora de Comunicación:",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              // Despliegue del hilo de mensajes entre el cliente y el administrador.
               ...(order['messages'] as List? ?? []).map((m) => ListTile(
                     dense: true,
-                    title: Text(m['sender'] == 'admin' ? "Administrador" : "Tú",
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(m['sender'] == 'admin' ? "Administración" : "Usuario",
                         style: TextStyle(
                             color: m['sender'] == 'admin'
                                 ? Colors.blue
-                                : Colors.black87)),
+                                : Colors.black87,
+                            fontWeight: FontWeight.bold)),
                     subtitle: Text(m['text']),
                   )),
-              if (order['status'] == 'Cotizado') ...[
+              // Habilita la entrada de texto si la negociación está activa.
+              if (order['status'] == 'Cotizado' || order['status'] == 'Esperando aprobación') ...[
                 const Divider(),
                 TextField(
                     controller: msgCtrl,
                     decoration:
-                        const InputDecoration(labelText: "Responder al admin...")),
+                        const InputDecoration(labelText: "Escribir respuesta...", border: OutlineInputBorder())),
               ]
             ],
           ),
@@ -77,18 +93,22 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
               onPressed: () => Navigator.pop(context),
               child: const Text("Cerrar")),
           if (order['status'] == 'Cotizado') ...[
+            // Acción para aceptar la propuesta económica del administrador.
             ElevatedButton(
               onPressed: () async {
                 await _repository.negotiateSale(order['_id'] ?? order['id'],
                     status: "Aceptado por cliente",
-                    message: "He aceptado la cotización.");
+                    message: "El cliente ha aceptado la cotización propuesta.");
                 Navigator.pop(context);
                 _load();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("Aceptar Precio",
+              child: const Text("Aceptar Cotización",
                   style: TextStyle(color: Colors.white)),
             ),
+          ],
+          if (order['status'] == 'Cotizado' || order['status'] == 'Esperando aprobación') ...[
+            // Envía un mensaje adicional al administrador.
             ElevatedButton(
               onPressed: () async {
                 if (msgCtrl.text.isEmpty) return;
@@ -121,20 +141,21 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                   Text("Mis Pedidos",
                       style:
                           TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  Text("Aquí verás el estado de tus compras y solicitudes",
+                  Text("Seguimiento de solicitudes y transacciones",
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ),
-              IconButton(onPressed: _load, icon: const Icon(Icons.refresh, color: Colors.blue)),
+              IconButton(onPressed: _load, icon: const Icon(Icons.sync, color: Colors.blue)),
             ],
           ),
           const SizedBox(height: 16),
+          // Gestión de estados de carga y visualización de lista.
           if (_isLoading)
             const Expanded(child: Center(child: CircularProgressIndicator()))
           else
             Expanded(
                 child: _myOrders.isEmpty
-                    ? const Center(child: Text("No tienes pedidos registrados"))
+                    ? const Center(child: Text("No se registran pedidos en esta cuenta."))
                     : RefreshIndicator(
                         onRefresh: () async => _load(),
                         child: ListView.builder(
@@ -148,15 +169,15 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                                 child: ListTile(
                                   leading: Icon(
                                       o['type'] == 'especial'
-                                          ? Icons.stars
-                                          : Icons.shopping_bag_outlined,
+                                          ? Icons.assignment_turned_in_outlined
+                                          : Icons.shopping_cart_outlined,
                                       color: o['type'] == 'especial'
-                                          ? Colors.purple
+                                          ? Colors.indigo
                                           : Colors.blue),
                                   title: Text(
-                                      "Pedido del ${o['date']?.toString().split('T')[0] ?? 'Hoy'}"),
+                                      "Orden: ${o['date']?.toString().split('T')[0] ?? 'N/A'}"),
                                   subtitle: Text("Estado: ${o['status']}"),
-                                  trailing: const Icon(Icons.chevron_right),
+                                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                                   onTap: () => _showNegotiation(o),
                                 ),
                               );
