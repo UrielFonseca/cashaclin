@@ -4,8 +4,8 @@ import '../../repositories/sale_repository.dart';
 
 /*
   Pantalla de Gestión de Clientes:
-  Módulo administrativo para la visualización y edición de perfiles de clientes.
-  Incluye una funcionalidad integrada para consultar el historial de transacciones por usuario.
+  Módulo administrativo diseñado para la administración de la base de datos de usuarios.
+  Permite realizar el registro, actualización, eliminación y consulta de historial de consumo.
 */
 class Customers extends StatefulWidget {
   const Customers({super.key});
@@ -26,19 +26,23 @@ class _CustomersState extends State<Customers> {
     _refresh();
   }
 
-  /// Recupera el listado actualizado de clientes desde el repositorio.
+  /// Sincroniza la vista con los datos más recientes del servidor.
   void _refresh() {
     setState(() {
       _customersFuture = _repository.getCustomers();
     });
   }
 
-  /// Despliega un modal con la relación de compras realizadas por el cliente.
+  /*
+    Consulta de Historial:
+    Busca de forma reactiva todas las transacciones en la nube filtradas por el correo
+    electrónico del cliente seleccionado.
+  */
   void _showCustomerPurchases(String email, String name) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Historial de Compras - $name"),
+        title: Text("Historial de Consumo - $name"),
         content: SizedBox(
           width: double.maxFinite,
           child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -47,9 +51,10 @@ class _CustomersState extends State<Customers> {
               if (snapshot.connectionState == ConnectionState.waiting) 
                 return const Center(child: CircularProgressIndicator());
               
+              // Filtrado dinámico de pedidos asociados al usuario.
               final sales = snapshot.data?.where((s) => s['customerEmail'] == email).toList() ?? [];
               
-              if (sales.isEmpty) return const Text("No existen registros de ventas para este usuario.");
+              if (sales.isEmpty) return const Text("No se registran transacciones para este perfil.");
 
               return ListView.builder(
                 shrinkWrap: true,
@@ -57,9 +62,9 @@ class _CustomersState extends State<Customers> {
                 itemBuilder: (context, index) {
                   final sale = sales[index];
                   return ListTile(
-                    title: Text("Fecha: ${sale['date']?.toString().split('T')[0] ?? 'No disponible'}"),
-                    subtitle: Text("Monto total: \$${sale['total']}"),
-                    trailing: const Icon(Icons.receipt_long, color: Colors.blueGrey),
+                    leading: const Icon(Icons.receipt, color: Colors.blueGrey),
+                    title: Text("Orden: ${sale['date']?.toString().split('T')[0] ?? 'N/A'}"),
+                    subtitle: Text("Importe: \$${sale['total']}"),
                   );
                 },
               );
@@ -71,8 +76,13 @@ class _CustomersState extends State<Customers> {
     );
   }
 
-  /// Inicializa el diálogo para el registro o edición de datos del cliente.
+  /*
+    Gestión de Información de Cliente:
+    Diferencia entre la creación de un nuevo registro y la actualización de uno existente
+    para evitar la duplicidad de datos en el servidor.
+  */
   void _showCustomerDialog({String? docId, Map<String, dynamic>? data}) {
+    final bool isEdit = docId != null;
     final nameController = TextEditingController(text: data?['name'] ?? '');
     final emailController = TextEditingController(text: data?['email'] ?? '');
     final phoneController = TextEditingController(text: data?['phone'] ?? '');
@@ -80,16 +90,16 @@ class _CustomersState extends State<Customers> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(docId == null ? "Registrar Cliente" : "Actualizar Información"),
+        title: Text(isEdit ? "Actualizar Registro" : "Registrar Cliente"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: nameController, decoration: const InputDecoration(labelText: "Nombre Completo", border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: emailController, decoration: const InputDecoration(labelText: "Email Institucional", border: OutlineInputBorder())),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: "Correo Electrónico", border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Teléfono de Contacto", border: OutlineInputBorder())),
+              TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Número Telefónico", border: OutlineInputBorder())),
             ],
           ),
         ),
@@ -97,17 +107,27 @@ class _CustomersState extends State<Customers> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton(
             onPressed: () async {
+              if (nameController.text.isEmpty || emailController.text.isEmpty) return;
+              
               final payload = {
-                'id': docId,
                 'name': nameController.text,
                 'email': emailController.text,
                 'phone': phoneController.text,
               };
-              await _repository.addCustomer(payload);
-              Navigator.pop(context);
-              _refresh();
+
+              // Implementación de lógica PUT para edición y POST para creación.
+              if (isEdit) {
+                await _repository.updateCustomer(docId, payload);
+              } else {
+                await _repository.addCustomer(payload);
+              }
+              
+              if (mounted) {
+                Navigator.pop(context);
+                _refresh();
+              }
             },
-            child: const Text("Confirmar"),
+            child: const Text("Guardar Cambios"),
           ),
         ],
       ),
@@ -123,21 +143,20 @@ class _CustomersState extends State<Customers> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Base de Datos de Clientes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const Text("Directorio de Clientes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ElevatedButton.icon(
                 onPressed: () => _showCustomerDialog(),
-                icon: const Icon(Icons.person_add_alt_1),
+                icon: const Icon(Icons.add),
                 label: const Text("Nuevo Registro"),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
               )
             ],
           ),
           const SizedBox(height: 16),
-          // Buscador funcional por criterios de texto.
+          // Motor de búsqueda local basado en el nombre del cliente.
           TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
-              hintText: "Filtrar por nombre...",
+              hintText: "Buscar por nombre...",
               isDense: true,
               filled: true,
               fillColor: Colors.white,
@@ -153,7 +172,7 @@ class _CustomersState extends State<Customers> {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
                 
                 final docs = snapshot.data?.where((doc) {
-                  return doc['name'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+                  return (doc['name'] ?? '').toString().toLowerCase().contains(searchTerm.toLowerCase());
                 }).toList() ?? [];
 
                 return Container(
@@ -169,22 +188,36 @@ class _CustomersState extends State<Customers> {
                         headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
                         columns: const [
                           DataColumn(label: Text("Nombre", style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text("Contacto", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text("Teléfono", style: TextStyle(fontWeight: FontWeight.bold))),
                           DataColumn(label: Text("Historial", style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text("Edición", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text("Acciones", style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
-                        rows: docs.map((doc) => DataRow(cells: [
-                          DataCell(Text(doc['name'] ?? '', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text(doc['phone'] ?? '', style: const TextStyle(fontSize: 12))),
-                          DataCell(IconButton(
-                            icon: const Icon(Icons.query_stats, color: Colors.blueGrey, size: 20),
-                            onPressed: () => _showCustomerPurchases(doc['email'], doc['name']),
-                          )),
-                          DataCell(IconButton(
-                            icon: const Icon(Icons.edit_note, size: 20, color: Colors.indigo),
-                            onPressed: () => _showCustomerDialog(docId: doc['_id'] ?? doc['id'], data: doc),
-                          )),
-                        ])).toList(),
+                        rows: docs.map((doc) {
+                          final String id = doc['_id']?.toString() ?? doc['id']?.toString() ?? '';
+                          return DataRow(cells: [
+                            DataCell(Text(doc['name'] ?? '', style: const TextStyle(fontSize: 12))),
+                            DataCell(Text(doc['phone'] ?? '', style: const TextStyle(fontSize: 12))),
+                            DataCell(IconButton(
+                              icon: const Icon(Icons.history_edu, color: Colors.blueGrey, size: 18),
+                              onPressed: () => _showCustomerPurchases(doc['email'], doc['name']),
+                            )),
+                            DataCell(Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18, color: Colors.indigo),
+                                  onPressed: () => _showCustomerDialog(docId: id, data: doc),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_sweep, size: 18, color: Colors.red),
+                                  onPressed: () async {
+                                    await _repository.deleteCustomer(id);
+                                    _refresh();
+                                  },
+                                ),
+                              ],
+                            )),
+                          ]);
+                        }).toList(),
                       ),
                     ),
                   ),

@@ -4,8 +4,8 @@ import '../models/product_model.dart';
 
 /*
   Pantalla de Inventario y Stock:
-  Proporciona una vista tabular detallada de las existencias físicas en el almacén.
-  Permite al administrador monitorear los niveles de inventario y el estado operativo de cada producto.
+  Módulo encargado de la visualización tabular de las existencias físicas.
+  Permite al administrador monitorear los niveles de inventario y el estatus operativo de cada artículo.
 */
 class Inventory extends StatefulWidget {
   const Inventory({super.key});
@@ -16,17 +16,17 @@ class Inventory extends StatefulWidget {
 
 class _InventoryState extends State<Inventory> {
   final ProductRepository _repository = ProductRepository();
-  String searchTerm = '';
+  String searchTerm = ''; 
   late Future<List<Product>> _productsFuture;
 
   @override
   void initState() {
     super.initState();
-    // Inicialización de la carga de datos.
+    // Inicialización de la carga de datos desde el servicio remoto.
     _refresh();
   }
 
-  /// Recupera la lista actualizada de productos desde el repositorio.
+  /// Recupera la lista actualizada de productos desde el servidor.
   void _refresh() {
     setState(() {
       _productsFuture = _repository.getProducts();
@@ -41,14 +41,14 @@ class _InventoryState extends State<Inventory> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Control de Inventario", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const Text("Monitoreo de existencias físicas y niveles críticos", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const Text("Monitoreo de existencias físicas y niveles de reabastecimiento.", style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
           
-          // Campo de búsqueda para filtrar por nombre de producto.
+          // Campo de búsqueda con filtrado reactivo por nombre.
           TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
-              hintText: "Filtrar por nombre de producto...",
+              hintText: "Buscar producto por nombre...",
               isDense: true,
               filled: true,
               fillColor: Colors.white,
@@ -56,15 +56,15 @@ class _InventoryState extends State<Inventory> {
             ),
             onChanged: (v) => setState(() => searchTerm = v),
           ),
-          
           const SizedBox(height: 16),
           
+          // Representación de datos mediante una tabla con soporte para scroll bidireccional.
           Expanded(
             child: FutureBuilder<List<Product>>(
               future: _productsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError) return const Center(child: Text("Error: No se pudo conectar con la base de datos de inventario"));
+                if (snapshot.hasError) return const Center(child: Text("Error operativo: No se pudo conectar con el almacén central."));
                 
                 final products = snapshot.data?.where((p) => p.name.toLowerCase().contains(searchTerm.toLowerCase())).toList() ?? [];
 
@@ -85,7 +85,7 @@ class _InventoryState extends State<Inventory> {
                           headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
                           columns: const [
                             DataColumn(label: Text("Clave SKU", style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text("Descripción del Producto", style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text("Descripción", style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text("Stock Actual", style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text("Categoría", style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text("Estatus", style: TextStyle(fontWeight: FontWeight.bold))),
@@ -110,11 +110,11 @@ class _InventoryState extends State<Inventory> {
     );
   }
 
-  /// Genera un indicador visual del estado del stock basado en el nivel de inventario.
+  /// Genera un indicador visual del estado del inventario.
   Widget _buildStatusBadge(int stock) {
     bool isLow = stock < 10;
     Color color = isLow ? Colors.red : Colors.green;
-    String label = isLow ? "Nivel Crítico" : "En Existencia";
+    String label = isLow ? "Stock Crítico" : "En Existencia";
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

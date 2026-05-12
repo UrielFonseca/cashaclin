@@ -1,12 +1,14 @@
+/// Modelo de datos representativo de un Producto.
+/// Define la estructura técnica de los artículos del catálogo.
 class Product {
-  final String id;
-  String name;
-  String sku;
-  String category;
-  String image;
-  String description;
-  double price;
-  int stock;
+  final String id; // Identificador único del documento (MongoDB _id).
+  String name; // Nombre comercial del producto.
+  String sku; // Clave de inventario generada automáticamente.
+  String category; // Categoría operativa (Limpieza, Lavado, etc.).
+  String image; // URL de la imagen hospedada en el servidor.
+  String description; // Descripción técnica o comercial del artículo.
+  double price; // Valor monetario unitario.
+  int stock; // Cantidad física disponible en el almacén.
 
   Product({
     required this.id,
@@ -19,10 +21,10 @@ class Product {
     required this.stock,
   });
 
-  // 🔹 Ajustado para que MongoDB y Flutter se entiendan
+  /// Mapea un objeto JSON proveniente de la API o base de datos a una instancia de Product.
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
-      // Si la API manda _id (Mongo) o id, lo capturamos correctamente
+      // Se normaliza el identificador para aceptar tanto 'id' como '_id'.
       id: map['_id']?.toString() ?? map['id']?.toString() ?? '',
       name: map['name'] ?? '',
       sku: map['sku'] ?? '',
@@ -34,6 +36,7 @@ class Product {
     );
   }
 
+  /// Convierte la instancia del objeto a un Mapa para su envío serializado mediante la API.
   Map<String, dynamic> toMap() {
     return {
       'name': name,

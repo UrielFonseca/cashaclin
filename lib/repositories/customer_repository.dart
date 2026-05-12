@@ -8,11 +8,19 @@ class CustomerRepository {
       final List<dynamic> data = await _apiService.get('/customers');
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
-      throw Exception("Error al obtener clientes: $e");
+      return [];
     }
   }
 
   Future<void> addCustomer(Map<String, dynamic> customer) async {
     await _apiService.post('/customers', customer);
+  }
+
+  Future<void> updateCustomer(String id, Map<String, dynamic> customer) async {
+    await _apiService.put('/customers/$id', customer);
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    await _apiService.delete('/customers/$id');
   }
 }
