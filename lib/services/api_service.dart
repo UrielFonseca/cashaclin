@@ -3,25 +3,22 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+/*
+  Servicio de Comunicación API:
+  Gestiona todas las peticiones HTTP salientes hacia el servidor Backend.
+  Encapsula la lógica de cabeceras, autenticación JWT y manejo de respuestas.
+*/
 class ApiService {
-  // 🔹 CONFIGURACIÓN DE URL PARA PROYECTO ESCOLAR
-  // Para Web (Chrome): Usamos localhost
-  // Para Emulador Android: Usamos 10.0.2.2
-  // Para Celular Real: CAMBIA 'localhost' por la IP de tu PC (ej: 192.168.1.XX)
+  // Determina la URL base según el entorno de ejecución (Web o Emulador Android).
   static String get baseUrl {
-    if (kIsWeb) {
-      return "http://localhost:3000/api";
-    } else {
-      // Dirección especial para que el emulador de Android vea tu computadora
-      return "http://10.0.2.2:3000/api"; 
-    }
+    if (kIsWeb) return "http://localhost:3000/api";
+    return "http://10.0.2.2:3000/api"; 
   }
 
-  // Obtener headers con JWT automáticamente
+  // Genera las cabeceras estándar incluyendo el token de autorización si existe.
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('jwt_token');
-    
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -29,40 +26,36 @@ class ApiService {
     };
   }
 
-  // GET genérico
+  // Realiza una petición GET al servidor.
   Future<dynamic> get(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse("$baseUrl$endpoint"),
-        headers: await _getHeaders(),
-      );
-      return _handleResponse(response);
-    } catch (e) {
-      throw Exception("Error de conexión: Revisa si tu servidor Node.js está encendido.");
-    }
+    final response = await http.get(Uri.parse("$baseUrl$endpoint"), headers: await _getHeaders());
+    return _handleResponse(response);
   }
 
-  // POST genérico
+  // Realiza una petición POST enviando datos en formato JSON.
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    try {
-      final response = await http.post(
-        Uri.parse("$baseUrl$endpoint"),
-        headers: await _getHeaders(),
-        body: jsonEncode(data),
-      );
-      return _handleResponse(response);
-    } catch (e) {
-      throw Exception("Error de conexión: Revisa si tu servidor Node.js está encendido.");
-    }
+    final response = await http.post(Uri.parse("$baseUrl$endpoint"), headers: await _getHeaders(), body: jsonEncode(data));
+    return _handleResponse(response);
   }
 
+  // Realiza una petición PUT para actualizar recursos existentes.
+  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
+    final response = await http.put(Uri.parse("$baseUrl$endpoint"), headers: await _getHeaders(), body: jsonEncode(data));
+    return _handleResponse(response);
+  }
+
+  // Realiza una petición DELETE para eliminar recursos del servidor.
+  Future<dynamic> delete(String endpoint) async {
+    final response = await http.delete(Uri.parse("$baseUrl$endpoint"), headers: await _getHeaders());
+    return _handleResponse(response);
+  }
+
+  // Centraliza el manejo de respuestas HTTP y errores de servidor.
   dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
-    } else if (response.statusCode == 401) {
-      throw Exception("Sesión expirada o no autorizado");
     } else {
-      throw Exception("Error servidor (${response.statusCode}): ${response.body}");
+      throw Exception("Error del servidor: ${response.statusCode} - ${response.body}");
     }
   }
 }

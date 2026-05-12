@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
+/// Pantalla principal que sirve como centro de navegación para administradores y clientes.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -15,9 +16,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Verifica el rol del usuario al cargar la pantalla.
     _checkRole();
   }
 
+  /// Recupera el rol del usuario desde el almacenamiento local.
   void _checkRole() async {
     final role = await _authService.getRole();
     setState(() {
@@ -42,6 +45,7 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Stack(
           children: [
+            // Círculos decorativos de fondo.
             Positioned(
               top: -150,
               left: -100,
@@ -59,6 +63,7 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
+                    // Logotipo de la empresa.
                     ClipRRect(
                       borderRadius: BorderRadius.circular(110),
                       child: Container(
@@ -85,7 +90,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 40),
 
-                    // 🛡️ MOSTRAR SOLO SI ES ADMIN
+                    // Sección visible únicamente para usuarios con privilegios administrativos.
                     if (_userRole == 'admin') ...[
                       _mainCard(
                         context,
@@ -99,6 +104,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 20),
                     ],
 
+                    // Acceso al portal de compras para el cliente.
                     _mainCard(
                       context,
                       icon: Icons.shopping_bag,
@@ -111,6 +117,7 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 40),
 
+                    // Tarjetas informativas sobre beneficios del servicio.
                     _featureCard(
                       icon: Icons.security,
                       title: "Garantía de Calidad",
@@ -124,6 +131,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     
                     const SizedBox(height: 20),
+                    // Opción para cerrar la sesión actual y limpiar el token JWT.
                     TextButton.icon(
                       onPressed: () async {
                         await _authService.logout();
@@ -142,6 +150,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Construye un círculo decorativo con desenfoque simulado.
   Widget _buildGlowCircle(double size, Color color) {
     return Container(
       width: size,
@@ -150,6 +159,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Construye una tarjeta interactiva para las acciones principales.
   Widget _mainCard(
     BuildContext context, {
     required IconData icon,
@@ -190,6 +200,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Construye un componente informativo horizontal.
   Widget _featureCard({required IconData icon, required String title, required String description}) {
     return Container(
       width: double.infinity,

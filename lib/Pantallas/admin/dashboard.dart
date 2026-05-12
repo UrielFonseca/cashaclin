@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../../repositories/product_repository.dart';
 import '../../repositories/customer_repository.dart';
 import '../../repositories/sale_repository.dart';
+import '../models/product_model.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+/// Vista de Dashboard para el administrador.
+/// Muestra estadísticas clave, métricas de rendimiento y alertas de inventario.
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
 
@@ -21,16 +24,37 @@ class _DashboardState extends State<Dashboard> {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
 
     return FutureBuilder(
+      // Se obtienen los datos de productos, clientes y ventas de forma paralela.
       future: Future.wait([_pRepo.getProducts(), _cRepo.getCustomers(), _sRepo.getSales()]),
       builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         
-        final products = snapshot.data?[0] ?? [];
-        final customers = snapshot.data?[1] ?? [];
-        final sales = snapshot.data?[2] ?? [];
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                const Text("Error al conectar con el servidor central."),
+                TextButton(onPressed: () => setState(() {}), child: const Text("Reintentar"))
+              ],
+            ),
+          );
+        }
 
+        final List<Product> products = snapshot.data?[0] ?? [];
+        final List<dynamic> customers = snapshot.data?[1] ?? [];
+        final List<dynamic> sales = snapshot.data?[2] ?? [];
+
+        // Filtrado de productos con stock bajo para alertas.
+        final lowStockProducts = products.where((p) => p.stock < 10).toList();
+        
+        // Cálculo de ingresos totales sumando todas las ventas registradas.
         double totalRevenue = 0;
-        for (var sale in sales) { totalRevenue += (sale['total'] ?? 0).toDouble(); }
+        for (var sale in sales) {
+          totalRevenue += (sale['total'] ?? 0).toDouble();
+        }
 
         return Container(
           color: const Color(0xfff1f5f9),
@@ -39,36 +63,50 @@ class _DashboardState extends State<Dashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Panel de Control", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const Text("Resumen sincronizado vía API REST", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const Text("Resumen de Operaciones", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const Text("Indicadores clave de rendimiento sincronizados", style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 20),
                 
-                isMobile 
-                ? Column(children: [
-                    Row(children: [_statCard("\$${totalRevenue.toStringAsFixed(0)}", "Ventas", Icons.monetization_on, Colors.green), const SizedBox(width: 8), _statCard("${products.length}", "Stock", Icons.inventory, Colors.blue)]),
-                    const SizedBox(height: 8),
-                    Row(children: [_statCard("${customers.length}", "Clientes", Icons.people, Colors.orange), const SizedBox(width: 8), _statCard("${sales.length}", "Pedidos", Icons.shopping_bag, Colors.purple)]),
-                  ])
-                : Row(children: [
-                    _statCard("\$${totalRevenue.toStringAsFixed(0)}", "Ingresos", Icons.monetization_on, Colors.green),
-                    const SizedBox(width: 16),
-                    _statCard("${products.length}", "Artículos", Icons.inventory, Colors.blue),
-                    const SizedBox(width: 16),
-                    _statCard("${customers.length}", "Clientes", Icons.people, Colors.orange),
-                    const SizedBox(width: 16),
-                    _statCard("${sales.length}", "Pedidos", Icons.shopping_bag, Colors.purple),
-                  ]),
+                // Cuadrícula de indicadores principales.
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: isMobile ? 2 : 4,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: isMobile ? 1.4 : 2.2,
+                  children: [
+                    _statCard("\$${totalRevenue.toStringAsFixed(0)}", "Ingresos Totales", Icons.payments, Colors.green, "Ventas confirmadas"),
+                    _statCard("${products.length}", "Productos", Icons.inventory_2, Colors.blue, "Artículos en catálogo"),
+                    _statCard("${customers.length}", "Clientes", Icons.people, Colors.orange, "Usuarios registrados"),
+                    _statCard("${lowStockProducts.length}", "Stock Bajo", Icons.warning_amber_rounded, Colors.red, "Reabastecimiento urgente"),
+                  ],
+                ),
                 
                 const SizedBox(height: 24),
-                const Text("Actividad Reciente", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const Divider(),
-                if (sales.isEmpty) const Text("No hay datos disponibles en la API."),
-                ...sales.reversed.take(5).map((s) => ListTile(
-                  leading: const Icon(Icons.receipt, color: Colors.blue),
-                  title: Text(s['customerName'] ?? 'Anon'),
-                  subtitle: Text("Total: \$${s['total']}"),
-                  trailing: const Text("Completado", style: TextStyle(color: Colors.green, fontSize: 11)),
+                
+                // Gráfica de evolución de ventas.
+                _sectionCard("Tendencia de Ventas Mensuales", SizedBox(
+                  height: 200,
+                  child: sales.isEmpty 
+                    ? const Center(child: Text("Sin registros de ventas históricos"))
+                    : LineChart(_mainData(sales)),
                 )),
+
+                const SizedBox(height: 24),
+
+                // Lista de productos con stock crítico.
+                if (lowStockProducts.isNotEmpty)
+                  _sectionCard("Alertas de Inventario", Column(
+                    children: lowStockProducts.map((p) => ListTile(
+                      dense: true,
+                      title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("Nivel actual: ${p.stock} unidades"),
+                      trailing: const Icon(Icons.priority_high, color: Colors.red, size: 16),
+                    )).toList(),
+                  )),
+
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -77,20 +115,72 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _statCard(String value, String title, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(blurRadius: 5, color: const Color(0x0D000000))]),
-        child: Row(children: [
-          CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10)),
-          ]),
-        ]),
+  /// Construye una tarjeta de estadística con descripción del indicador.
+  Widget _statCard(String value, String title, IconData icon, Color color, String description) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(12), 
+        boxShadow: [BoxShadow(blurRadius: 5, color: const Color(0x0D000000))]
       ),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
+          const SizedBox(width: 8),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, 
+            mainAxisAlignment: MainAxisAlignment.center, 
+            children: [
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+              Text(title, style: const TextStyle(color: Colors.black87, fontSize: 10, fontWeight: FontWeight.bold)),
+              Text(description, style: const TextStyle(color: Colors.grey, fontSize: 8), maxLines: 1),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+
+  /// Contenedor genérico para secciones del dashboard.
+  Widget _sectionCard(String title, Widget child) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Divider(),
+        const SizedBox(height: 10),
+        child,
+      ]),
+    );
+  }
+
+  /// Procesa los datos de ventas para generar la gráfica lineal.
+  LineChartData _mainData(List<dynamic> sales) {
+    List<FlSpot> spots = [];
+    var sortedSales = List.from(sales);
+    sortedSales.sort((a, b) => (a['date'] ?? '').compareTo(b['date'] ?? ''));
+    
+    for (int i = 0; i < sortedSales.length; i++) {
+      spots.add(FlSpot(i.toDouble(), (sortedSales[i]['total'] ?? 0).toDouble()));
+    }
+
+    return LineChartData(
+      gridData: const FlGridData(show: false),
+      titlesData: const FlTitlesData(show: false),
+      borderData: FlBorderData(show: false),
+      lineBarsData: [
+        LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          color: Colors.blue,
+          barWidth: 3,
+          dotData: const FlDotData(show: false),
+          belowBarData: BarAreaData(show: true, color: Colors.blue.withAlpha(20)),
+        ),
+      ],
     );
   }
 }

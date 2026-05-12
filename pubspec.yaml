@@ -13,6 +13,8 @@ dependencies:
   fl_chart: ^0.66.0
   http: ^1.1.0
   shared_preferences: ^2.2.2
+  table_calendar: ^3.1.2
+  sqflite: 2.4.2+1
 
 dev_dependencies:
   flutter_test:

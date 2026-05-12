@@ -4,13 +4,12 @@ import '../Pantallas/models/product_model.dart';
 class ProductRepository {
   final ApiService _apiService = ApiService();
 
-  // Obtener productos directamente de la API
   Future<List<Product>> getProducts() async {
     try {
       final List<dynamic> data = await _apiService.get('/products');
       return data.map((json) => Product.fromMap(json)).toList();
     } catch (e) {
-      throw Exception("Error al conectar con la API: $e");
+      return [];
     }
   }
 
@@ -18,12 +17,17 @@ class ProductRepository {
     await _apiService.post('/products', product.toMap());
   }
 
+  Future<void> updateProduct(String id, Product product) async {
+    // Usamos PUT para actualizar el documento existente por su ID
+    await _apiService.put('/products/$id', product.toMap());
+  }
+
   Future<void> updateStock(String id, int newStock) async {
     await _apiService.post('/products/$id/stock', {'stock': newStock});
   }
 
   Future<void> deleteProduct(String id) async {
-    // Asumiendo que el ApiService tiene un método delete o enviando vía post según tu backend
-    await _apiService.post('/products/$id/delete', {});
+    // Usamos el método DELETE de la API
+    await _apiService.delete('/products/$id');
   }
 }

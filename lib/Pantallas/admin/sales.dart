@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../repositories/sale_repository.dart';
 
+/*
+  Pantalla de Ventas y Pedidos Especiales:
+  Interfaz administrativa para la gestión de transacciones comerciales.
+  Permite diferenciar entre ventas directas de carrito y solicitudes de cotización.
+*/
 class Sales extends StatefulWidget {
   const Sales({super.key});
 
@@ -11,6 +16,7 @@ class Sales extends StatefulWidget {
 class _SalesState extends State<Sales> {
   final SaleRepository _repository = SaleRepository();
   late Future<List<Map<String, dynamic>>> _salesFuture;
+  bool _showSpecialOnly = false; // Estado para el filtrado de pedidos especiales.
 
   @override
   void initState() {
@@ -18,114 +24,171 @@ class _SalesState extends State<Sales> {
     _refresh();
   }
 
+  /// Recupera el listado completo de ventas desde el servidor central.
   void _refresh() {
     setState(() {
       _salesFuture = _repository.getSales();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 800;
+  /*
+    Diálogo de Negociación:
+    Herramienta interactiva para que el administrador asigne precios a solicitudes 
+    especiales y mantenga una comunicación directa con el cliente.
+  */
+  void _negotiateDialog(Map<String, dynamic> sale) {
+    final priceCtrl = TextEditingController(text: sale['total']?.toString() ?? '0');
+    final msgCtrl = TextEditingController();
 
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _salesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        final docs = snapshot.data ?? [];
-        final completedSales = docs.where((s) => s['status'] == 'Completada').length;
-        double totalRevenue = 0;
-        for (var doc in docs) {
-          totalRevenue += (doc['total'] ?? 0).toDouble();
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Gestión de Cotización Especial"),
+        content: SingleChildScrollView(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Ventas Reales", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const Text("Historial sincronizado vía API", style: TextStyle(color: Colors.grey, fontSize: 13)),
-              const SizedBox(height: 20),
-              
-              isMobile 
-                ? Column(
-                    children: [
-                      _statItem(Icons.check_circle, "Completas", completedSales.toString(), Colors.green),
-                      const SizedBox(height: 8),
-                      _statItem(Icons.monetization_on, "Ingresos", "\$${totalRevenue.toStringAsFixed(0)}", Colors.blue),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: _statItem(Icons.check_circle, "Ventas Completadas", completedSales.toString(), Colors.green)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _statItem(Icons.monetization_on, "Total Ingresos", "\$${totalRevenue.toStringAsFixed(0)}", Colors.blue)),
-                    ],
-                  ),
-              
-              const SizedBox(height: 24),
-              
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: DataTable(
-                    horizontalMargin: 12,
-                    columnSpacing: 15,
-                    headingRowHeight: 45,
-                    dataRowHeight: 55,
-                    columns: const [
-                      DataColumn(label: Text("Cliente", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Total", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Estado", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                    ],
-                    rows: docs.map((doc) {
-                      return DataRow(cells: [
-                        DataCell(SizedBox(width: 100, child: Text(doc['customerName'] ?? 'Anónimo', style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))),
-                        DataCell(Text("\$${(doc['total'] ?? 0).toStringAsFixed(0)}", style: const TextStyle(fontSize: 11))),
-                        DataCell(_statusBadge(doc['status'] ?? 'Pendiente')),
-                      ]);
-                    }).toList(),
-                  ),
-                ),
+              Text("Solicitante: ${sale['customerName']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("Contacto: ${sale['customerEmail']}"),
+              const Divider(),
+              const Text("Bitácora de Comunicación:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              if (sale['messages'] != null)
+                ... (sale['messages'] as List).map((m) => ListTile(
+                  dense: true,
+                  title: Text(m['sender'] == 'admin' ? "Administrador" : "Cliente"),
+                  subtitle: Text(m['text']),
+                )),
+              const Divider(),
+              // Entrada de datos para la oferta económica.
+              TextField(
+                controller: priceCtrl,
+                decoration: const InputDecoration(labelText: "Monto Total Cotizado", prefixText: "\$ "),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              // Espacio para retroalimentación técnica o comercial.
+              TextField(
+                controller: msgCtrl,
+                decoration: const InputDecoration(labelText: "Mensaje Informativo", hintText: "Ej: Descuento aplicado por volumen..."),
+                maxLines: 2,
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _statItem(IconData icon, String title, String val, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: const Color(0x0D000000), blurRadius: 5)]),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: color.withAlpha(26), radius: 18, child: Icon(icon, color: color, size: 18)),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-              Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            ],
-          )
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cerrar")),
+          // Envía la propuesta de precio y cambia el estatus a 'Cotizado'.
+          ElevatedButton(
+            onPressed: () async {
+              await _repository.negotiateSale(
+                sale['_id'] ?? sale['id'],
+                total: double.tryParse(priceCtrl.text),
+                status: "Cotizado",
+                message: msgCtrl.text,
+              );
+              Navigator.pop(context);
+              _refresh();
+            },
+            child: const Text("Enviar Propuesta"),
+          ),
+          // Finaliza la solicitud sin aprobación.
+          ElevatedButton(
+            onPressed: () async {
+              await _repository.negotiateSale(
+                sale['_id'] ?? sale['id'],
+                status: "Rechazado",
+                message: msgCtrl.text,
+              );
+              Navigator.pop(context);
+              _refresh();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Rechazar Solicitud", style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statusBadge(String status) {
-    Color col = status == "Completada" ? Colors.green : Colors.orange;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Control de Ventas", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              // Filtro avanzado para segmentación de pedidos.
+              FilterChip(
+                label: const Text("Pedidos Especiales"),
+                selected: _showSpecialOnly,
+                onSelected: (val) => setState(() => _showSpecialOnly = val),
+              )
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Representación tabular con scroll bidireccional.
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _salesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                var sales = snapshot.data ?? [];
+                if (_showSpecialOnly) sales = sales.where((s) => s['type'] == 'especial').toList();
+
+                return Container(
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columnSpacing: 25,
+                        showCheckboxColumn: false,
+                        columns: const [
+                          DataColumn(label: Text("Fecha")),
+                          DataColumn(label: Text("Cliente")),
+                          DataColumn(label: Text("Monto")),
+                          DataColumn(label: Text("Estado Operativo")),
+                        ],
+                        rows: sales.map((s) => DataRow(
+                          onSelectChanged: (selected) {
+                            if (s['type'] == 'especial') _negotiateDialog(s);
+                          },
+                          cells: [
+                            DataCell(Text(s['date']?.toString().split('T')[0] ?? 'N/A')),
+                            DataCell(Text(s['customerName'] ?? 'Anónimo')),
+                            DataCell(Text("\$${s['total']?.toStringAsFixed(2)}")),
+                            DataCell(_buildStatusIndicator(s['status'])),
+                          ],
+                        )).toList(),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Genera un indicador de estado con código de colores según el progreso del pedido.
+  Widget _buildStatusIndicator(String? status) {
+    Color col = Colors.blueGrey;
+    if (status == "Aceptado por cliente" || status == "Completada") col = Colors.green;
+    if (status == "Rechazado") col = Colors.red;
+    if (status == "Cotizado") col = Colors.blue;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: col.withAlpha(26), borderRadius: BorderRadius.circular(6)),
-      child: Text(status, style: TextStyle(color: col, fontSize: 10, fontWeight: FontWeight.bold)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: col.withAlpha(25), borderRadius: BorderRadius.circular(8)),
+      child: Text(status ?? 'Pendiente', style: TextStyle(color: col, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
