@@ -4,8 +4,8 @@ import '../../repositories/sale_repository.dart';
 
 /*
   Pantalla de Gestión de Clientes:
-  Permite al administrador visualizar la base de datos de clientes, 
-  editar sus perfiles y consultar su historial de compras individual.
+  Módulo administrativo para la visualización y edición de perfiles de clientes.
+  Incluye una funcionalidad integrada para consultar el historial de transacciones por usuario.
 */
 class Customers extends StatefulWidget {
   const Customers({super.key});
@@ -26,14 +26,14 @@ class _CustomersState extends State<Customers> {
     _refresh();
   }
 
-  /// Recupera la lista de clientes desde el repositorio.
+  /// Recupera el listado actualizado de clientes desde el repositorio.
   void _refresh() {
     setState(() {
       _customersFuture = _repository.getCustomers();
     });
   }
 
-  /// Despliega un modal con la lista de transacciones realizadas por el cliente.
+  /// Despliega un modal con la relación de compras realizadas por el cliente.
   void _showCustomerPurchases(String email, String name) async {
     showDialog(
       context: context,
@@ -44,12 +44,12 @@ class _CustomersState extends State<Customers> {
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: _saleRepository.getSales(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snapshot.connectionState == ConnectionState.waiting) 
+                return const Center(child: CircularProgressIndicator());
               
-              // Filtrado de ventas por el correo electrónico del cliente seleccionado.
               final sales = snapshot.data?.where((s) => s['customerEmail'] == email).toList() ?? [];
               
-              if (sales.isEmpty) return const Text("No se registraron transacciones para este perfil.");
+              if (sales.isEmpty) return const Text("No existen registros de ventas para este usuario.");
 
               return ListView.builder(
                 shrinkWrap: true,
@@ -57,9 +57,9 @@ class _CustomersState extends State<Customers> {
                 itemBuilder: (context, index) {
                   final sale = sales[index];
                   return ListTile(
-                    title: Text("Fecha de Pedido: ${sale['date']?.toString().split('T')[0] ?? 'N/A'}"),
-                    subtitle: Text("Monto Final: \$${sale['total']}"),
-                    trailing: const Icon(Icons.receipt, color: Colors.blueGrey),
+                    title: Text("Fecha: ${sale['date']?.toString().split('T')[0] ?? 'No disponible'}"),
+                    subtitle: Text("Monto total: \$${sale['total']}"),
+                    trailing: const Icon(Icons.receipt_long, color: Colors.blueGrey),
                   );
                 },
               );
@@ -71,7 +71,7 @@ class _CustomersState extends State<Customers> {
     );
   }
 
-  /// Abre el formulario para registrar un nuevo cliente o modificar uno existente.
+  /// Inicializa el diálogo para el registro o edición de datos del cliente.
   void _showCustomerDialog({String? docId, Map<String, dynamic>? data}) {
     final nameController = TextEditingController(text: data?['name'] ?? '');
     final emailController = TextEditingController(text: data?['email'] ?? '');
@@ -80,16 +80,16 @@ class _CustomersState extends State<Customers> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(docId == null ? "Registrar Nuevo Cliente" : "Actualizar Información"),
+        title: Text(docId == null ? "Registrar Cliente" : "Actualizar Información"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: nameController, decoration: const InputDecoration(labelText: "Nombre Completo", border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: emailController, decoration: const InputDecoration(labelText: "Correo Electrónico", border: OutlineInputBorder())),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: "Email Institucional", border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Número Telefónico", border: OutlineInputBorder())),
+              TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Teléfono de Contacto", border: OutlineInputBorder())),
             ],
           ),
         ),
@@ -107,7 +107,7 @@ class _CustomersState extends State<Customers> {
               Navigator.pop(context);
               _refresh();
             },
-            child: const Text("Guardar Cambios"),
+            child: const Text("Confirmar"),
           ),
         ],
       ),
@@ -123,17 +123,17 @@ class _CustomersState extends State<Customers> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Gestión de Clientes", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text("Base de Datos de Clientes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ElevatedButton.icon(
                 onPressed: () => _showCustomerDialog(),
-                icon: const Icon(Icons.person_add),
-                label: const Text("Nuevo Cliente"),
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const Text("Nuevo Registro"),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
               )
             ],
           ),
           const SizedBox(height: 16),
-          // Buscador dinámico por nombre.
+          // Buscador funcional por criterios de texto.
           TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
@@ -165,22 +165,23 @@ class _CustomersState extends State<Customers> {
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         horizontalMargin: 12,
-                        columnSpacing: 20,
+                        columnSpacing: 25,
+                        headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
                         columns: const [
-                          DataColumn(label: Text("Nombre")),
-                          DataColumn(label: Text("Teléfono")),
-                          DataColumn(label: Text("Historial")),
-                          DataColumn(label: Text("Acciones")),
+                          DataColumn(label: Text("Nombre", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text("Contacto", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text("Historial", style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text("Edición", style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
                         rows: docs.map((doc) => DataRow(cells: [
                           DataCell(Text(doc['name'] ?? '', style: const TextStyle(fontSize: 12))),
                           DataCell(Text(doc['phone'] ?? '', style: const TextStyle(fontSize: 12))),
                           DataCell(IconButton(
-                            icon: const Icon(Icons.manage_search, color: Colors.blueGrey, size: 20),
+                            icon: const Icon(Icons.query_stats, color: Colors.blueGrey, size: 20),
                             onPressed: () => _showCustomerPurchases(doc['email'], doc['name']),
                           )),
                           DataCell(IconButton(
-                            icon: const Icon(Icons.edit_note, size: 18, color: Colors.indigo),
+                            icon: const Icon(Icons.edit_note, size: 20, color: Colors.indigo),
                             onPressed: () => _showCustomerDialog(docId: doc['_id'] ?? doc['id'], data: doc),
                           )),
                         ])).toList(),

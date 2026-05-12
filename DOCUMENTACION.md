@@ -1,31 +1,34 @@
-# Documentación del Proyecto - Casha Clin Pro
+# Documentación Técnica - Sistema Casha Clin Pro
 
-Este documento proporciona una visión general del sistema de gestión comercial para productos de limpieza, detallando su arquitectura, flujo de datos y características técnicas.
+Este documento detalla el funcionamiento, arquitectura y flujo de operación del sistema de gestión comercial para "Casha Clin".
 
-## 1. Arquitectura del Sistema
-El proyecto está diseñado bajo una arquitectura de **Separación de Capas** (Frontend y Backend), lo que permite independencia entre la interfaz de usuario y la lógica de datos.
+## 1. Arquitectura de Software
+El sistema implementa una arquitectura de **Separación de Capas** (Decoupled Architecture) para garantizar escalabilidad y mantenimiento:
 
-*   **Frontend**: Desarrollado en Flutter, con un diseño responsivo que se adapta a dispositivos móviles y navegadores web (Chrome).
-*   **Backend**: Servidor RESTful en Node.js con Express, encargado de la validación de negocio y seguridad.
-*   **Base de Datos**: MongoDB Atlas para el almacenamiento persistente en la nube.
+*   **Capa de Presentación (Frontend)**: Desarrollada en Flutter, utilizando un diseño responsivo adaptativo para dispositivos móviles y navegadores web (Chrome).
+*   **Capa de Negocio (Repositories)**: Actúa como mediador entre la interfaz de usuario y los servicios de datos, gestionando la lógica de actualización de stock, validación de estados y sincronización.
+*   **Capa de Servicios (API/Auth)**: Gestiona la comunicación asíncrona mediante protocolos HTTP y seguridad basada en JWT (JSON Web Tokens).
+*   **Capa de Datos (Backend)**: Servidor Node.js con MongoDB Atlas para persistencia en la nube.
 *   **Persistencia Local**: SQLite (exclusivo para dispositivos móviles) para el almacenamiento de comprobantes de compra offline.
 
-## 2. Flujo de Autenticación y Seguridad
-El sistema utiliza **JWT (JSON Web Tokens)** para gestionar las sesiones:
-1.  El usuario se autentica o registra mediante el servicio de identidad.
-2.  El servidor emite un token que contiene el ID, Email y Rol del usuario.
-3.  Flutter almacena este token localmente y lo adjunta en cada petición HTTP para autorizar el acceso a los datos.
+## 2. Flujo de Usuario y Roles
 
-## 3. Funcionalidades del Administrador
-*   **Dashboard Ejecutivo**: Visualización de métricas de ingresos, conteo de stock y alertas automáticas de reabastecimiento.
-*   **Gestión de Catálogo**: Administración de productos con generación automatizada de SKU según la categoría seleccionada (LIM, LAV, DES).
-*   **Módulo de Negociación**: Sistema de comunicación bidireccional para procesar solicitudes de mayoreo, permitiendo asignar precios personalizados y enviar mensajes informativos al cliente.
+### Flujo de Acceso y Seguridad
+1. El sistema verifica la validez del token JWT en el almacenamiento local (`SharedPreferences`).
+2. Si no existe una sesión activa, el usuario es redirigido automáticamente al módulo de **Autenticación**.
+3. El servidor identifica al usuario mediante el token en cada petición, asociando automáticamente los pedidos al correo electrónico del titular de la sesión.
 
-## 4. Funcionalidades del Cliente
-*   **Portal de Compras**: Interfaz intuitiva para navegar el catálogo y gestionar el carrito con cálculo de impuestos.
-*   **Seguimiento de Solicitudes**: Panel automatizado donde el cliente consulta en tiempo real el estatus de sus pedidos especiales y responde a las cotizaciones del administrador.
+### Portal Administrativo (Rol: Admin)
+*   **Resumen de Operaciones (Dashboard)**: Muestrario de indicadores clave (KPIs) con gráficas dinámicas de ingresos y alertas de inventario crítico.
+*   **Gestión de Catálogo**: Módulo CRUD con generación automatizada de SKU basado en la nomenclatura de categorías (LIM, LAV, DES).
+*   **Control de Ventas y Negociación**: Interfaz interactiva para procesar solicitudes de mayoreo, permitiendo cotizar precios y mantener un historial de mensajes con el cliente.
 
-## 5. Detalles Técnicos de Interés
-*   **Patrón Repositorio**: Actúa como una capa de abstracción para que la interfaz no dependa directamente de la implementación de la API.
-*   **Manejo de Errores**: El sistema incluye validaciones de red y estados de carga (Loading) para mejorar la experiencia de usuario.
-*   **Diseño Responsivo**: Uso de `MediaQuery` y layouts adaptativos (Sidebar/Drawer) para garantizar usabilidad en cualquier resolución.
+### Portal del Cliente (Rol: Customer)
+*   **Catálogo Inteligente**: Consulta de existencias en tiempo real con filtrado por categorías.
+*   **Proceso de Checkout**: Registro de transacciones con cálculo automático de impuestos y persistencia local del recibo.
+*   **Seguimiento de Pedidos (Mis Pedidos)**: Panel automatizado para consultar el estatus de sus solicitudes especiales y responder a las propuestas del administrador.
+
+## 3. Puntos de Interés Técnico
+*   **Interoperabilidad**: El `ApiService` detecta el entorno de ejecución para ajustar las URLs de conexión (localhost para web vs 10.0.2.2 para emuladores).
+*   **Negociación Bidireccional**: El sistema permite un flujo de mensajes entre admin y cliente dentro de un mismo pedido, permitiendo la discusión de precios antes de la aceptación final.
+*   **Robustez Visual**: Implementación de `SingleChildScrollView` y layouts adaptativos para evitar errores de desbordamiento en pantallas pequeñas.
