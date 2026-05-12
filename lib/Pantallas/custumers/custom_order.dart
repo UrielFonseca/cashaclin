@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../repositories/sale_repository.dart';
 
-/// Pantalla de Pedido Especial:
-/// Permite a los usuarios finales realizar solicitudes de productos personalizados o compras por volumen.
-/// Incluye validación de formulario y una interfaz de calendario para seleccionar la fecha de entrega.
+/*
+  Pantalla de Pedido Especial:
+  Permite a los usuarios realizar solicitudes de productos personalizados o compras por volumen.
+  Incluye validación de formulario y un calendario interactivo para definir la fecha de entrega.
+*/
 class CustomOrderPage extends StatefulWidget {
   const CustomOrderPage({super.key});
 
@@ -19,38 +21,42 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
   final SaleRepository _repository = SaleRepository();
   bool _isLoading = false;
   
-  // Variables de control para el calendario interactivo.
+  // Variables para la gestión del calendario interactivo.
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
   @override
   void initState() {
     super.initState();
-    // Se inicializa el día seleccionado con la fecha actual.
+    // Inicialización del día seleccionado con la fecha actual.
     _selectedDay = _focusedDay;
   }
 
-  /// Envía la solicitud de pedido especial al servidor.
+  /*
+    Lógica de envío de solicitud:
+    1. Valida los campos obligatorios del formulario.
+    2. Asegura la selección de una fecha válida.
+    3. Registra el pedido en el servidor como tipo 'especial'.
+  */
   void _sendRequest() async {
     if (!_formKey.currentState!.validate()) return;
-    
     if (_selectedDay == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error: Por favor selecciona una fecha en el calendario")));
+          const SnackBar(content: Text("Error: Seleccione una fecha en el calendario")));
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      // Envío de la transacción al backend (MongoDB).
+      // Sincronización con el servidor mediante el repositorio de ventas.
       await _repository.createSale({
         'customerName': nameCtrl.text,
         'comment': commentCtrl.text,
-        'total': 0.0, // El monto final será determinado por el administrador.
+        'total': 0.0, // El monto final será asignado por el administrador.
         'type': 'especial',
         'status': 'Esperando aprobación',
         'date': _selectedDay!.toIso8601String(),
-        'items': [], // Pedidos especiales no tienen una lista definida de productos inicialmente.
+        'items': [],
         'messages': [
           {'sender': 'customer', 'text': 'Solicitud inicial: ${commentCtrl.text}'}
         ]
@@ -58,9 +64,9 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Éxito: Solicitud enviada correctamente. Un administrador revisará su caso.")));
+            const SnackBar(content: Text("Éxito: Solicitud enviada correctamente")));
         
-        // Limpieza del formulario tras el éxito.
+        // Reinicio de los controladores tras el envío exitoso.
         nameCtrl.clear();
         commentCtrl.clear();
         setState(() {
@@ -71,7 +77,7 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Error: No se pudo procesar la solicitud en este momento")));
+            const SnackBar(content: Text("Error: No se pudo procesar la solicitud")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -92,10 +98,10 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1E3A8A))),
-            const Text("Realice solicitudes para pedidos de mayoreo o productos personalizados", style: TextStyle(color: Colors.grey)),
+            const Text("Solicite productos por volumen o artículos personalizados", style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
             
-            // Entrada de texto para identificación del cliente.
+            // Entrada de datos para el nombre del solicitante.
             TextFormField(
                 controller: nameCtrl,
                 decoration: const InputDecoration(
@@ -110,7 +116,7 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             
-            // Componente de calendario para selección de fecha.
+            // Componente de calendario para selección de fecha operativa.
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -127,7 +133,6 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
                   formatButtonVisible: false,
                   titleCentered: true,
                 ),
-                availableGestures: AvailableGestures.all,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
@@ -143,18 +148,18 @@ class _CustomOrderPageState extends State<CustomOrderPage> {
             ),
             
             const SizedBox(height: 24),
-            // Área de texto para detalles específicos de la solicitud.
+            // Área de texto para detalles de la solicitud.
             TextFormField(
                 controller: commentCtrl,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                    labelText: "Detalles adicionales",
-                    hintText: "Especifique productos, volúmenes o requerimientos específicos...",
+                    labelText: "Detalles del pedido",
+                    hintText: "Especifique artículos, cantidades y requerimientos...",
                     border: OutlineInputBorder()),
-                validator: (v) => v!.isEmpty ? "Por favor proporcione detalles de su solicitud" : null),
+                validator: (v) => v!.isEmpty ? "Por favor proporcione detalles" : null),
             
             const SizedBox(height: 30),
-            // Botón de acción principal con indicador de carga dinámico.
+            // Botón de procesamiento de solicitud.
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
