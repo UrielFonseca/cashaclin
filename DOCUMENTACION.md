@@ -1,49 +1,32 @@
 # Documentación Técnica - Casha Clin Pro
 
-Este documento describe la arquitectura, el flujo de datos y las funcionalidades principales del sistema de gestión y ventas de productos de limpieza "Casha Clin Pro".
+Este documento detalla el funcionamiento, arquitectura y flujo de datos del sistema de gestión de productos de limpieza.
 
-## 1. Arquitectura General
-El proyecto sigue una arquitectura de **Separación de Capas** (Frontend/Backend) utilizando el patrón **Repositorio**.
+## 1. Arquitectura del Proyecto
+El sistema utiliza una arquitectura de **Separación de Capas** (Decoupled Architecture):
+*   **Frontend (Flutter)**: Interfaz de usuario responsiva compatible con Web y Móvil.
+*   **Backend (Node.js)**: Servidor RESTful que gestiona la lógica de negocio y seguridad.
+*   **Base de Datos (MongoDB Atlas)**: Almacenamiento persistente en la nube.
+*   **Seguridad (JWT)**: Autenticación mediante tokens para proteger las rutas y datos.
 
-*   **Frontend**: Desarrollado en Flutter, compatible con Android, iOS y Navegadores Web (Chrome).
-*   **Backend**: Servidor RESTful desarrollado en Node.js con Express, utilizando JWT (JSON Web Tokens) para la seguridad.
-*   **Base de Datos**: MongoDB Atlas (Nube) para la persistencia de datos globales.
-*   **Persistencia Local**: SQLite (exclusivo para móviles) utilizado para el almacenamiento de recibos de compra offline.
+## 2. Flujo de Datos y Roles
+El sistema identifica al usuario mediante su correo y rol guardados en el token JWT:
+1.  **Administrador**: Acceso total al Dashboard, Inventario, Gestión de Productos y Negociación de pedidos especiales.
+2.  **Cliente**: Acceso al catálogo, carrito de compras y seguimiento automatizado de sus pedidos.
 
-## 2. Flujo de Navegación y Roles
-El sistema implementa un control de acceso basado en roles:
+## 3. Pantallas Principales
 
-### Flujo de Autenticación
-1. Al iniciar la aplicación, se verifica la existencia de un token JWT válido en las preferencias locales.
-2. Si no existe sesión, el usuario es dirigido a la pantalla de **Login**.
-3. El usuario puede registrarse como **Cliente** o **Administrador**.
-
-### Portal del Administrador
-Visible únicamente para usuarios con el rol `admin`.
-*   **Dashboard**: Resumen ejecutivo con gráficas de ventas y alertas de inventario crítico.
-*   **Gestión de Productos**: CRUD completo con generación automática de SKU basada en categorías.
-*   **Inventario**: Ajuste rápido de existencias y control de stock.
-*   **Clientes**: Base de datos de usuarios con consulta de historial de compras integrado.
-*   **Ventas y Negociación**: Gestión de pedidos del carrito y solicitudes especiales.
+### Panel Administrativo
+*   **Dashboard**: Mide el rendimiento económico (Ingresos), nivel de inventario (Artículos) y alertas críticas (Stock Bajo).
+*   **Productos**: CRUD centralizado con generación automática de SKU según la categoría.
+*   **Ventas/Negociación**: Flujo de interacción directa con el cliente para pedidos de mayoreo.
 
 ### Portal del Cliente
-*   **Catálogo**: Compra de productos con validación de stock en tiempo real.
-*   **Carrito**: Procesamiento de pagos con cálculo automático de impuestos (IVA 16%).
-*   **Pedido Especial**: Formulario para cotizaciones de mayoreo con selección de fecha mediante calendario interactivo.
-*   **Mis Pedidos**: Seguimiento en tiempo real de solicitudes y chat de negociación con el administrador.
+*   **Catálogo**: Consulta y búsqueda de productos con validación de existencia.
+*   **Pedido Especial**: Solicitud de cotizaciones mediante un calendario interactivo (`table_calendar`).
+*   **Mis Pedidos**: Vista automatizada (vía JWT) del estado de solicitudes y respuestas del administrador.
 
-## 3. Componentes Técnicos de Interés
-
-### Gestión de Pedidos Especiales (Negociación)
-Es una de las funciones más robustas del sistema. Permite un flujo de comunicación bidireccional:
-1. El cliente envía una solicitud con una descripción y fecha tentativa.
-2. El administrador recibe la solicitud, asigna un precio cotizado y envía un mensaje de respuesta.
-3. El cliente visualiza la cotización y puede aceptar el precio final o responder al mensaje.
-
-### Automatización de SKU
-Para mantener el orden logístico, el sistema genera automáticamente claves de producto únicas:
-*   Prefijo basado en categoría (Ej: LIM para Limpieza, LAV para Lavado).
-*   Sufijo numérico incremental basado en el conteo total de artículos.
-
-### Seguridad JWT
-Todas las peticiones a la API (excepto login y registro) requieren un encabezado de autorización. El servidor decodifica el token para identificar al usuario, lo que garantiza que los pedidos se asocien automáticamente a la cuenta correcta sin que el usuario tenga que ingresar sus datos repetidamente.
+## 4. Detalles de Implementación (Puntos de Interés)
+*   **CORS y Headers**: Configurados en el `ApiService` para permitir la comunicación segura entre Chrome y el servidor.
+*   **Persistencia Local**: SQLite integrado para el almacenamiento de recibos de compra en dispositivos móviles.
+*   **Atomicidad**: Los descuentos de inventario se realizan en el servidor para evitar discrepancias de datos.
