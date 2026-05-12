@@ -90,7 +90,7 @@ class _CustomerLayoutState extends State<CustomerLayout> {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Icon(Icons.auto_awesome, size: 48, color: Color(0xFFFFD700)),
+          const Icon(Icons.store, size: 48, color: Color.fromARGB(255, 243, 224, 113)),
           const Text("Portal Cliente", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 40),
           _menuItem(0, "Catálogo de Productos", Icons.grid_view_rounded),
