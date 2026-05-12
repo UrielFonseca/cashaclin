@@ -75,9 +75,7 @@ class _HomePageState extends State<HomePage>
             child: Center(
               child: SingleChildScrollView(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 1300,
-                  ),
+                  constraints: const BoxConstraints(maxWidth: 1300),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -97,22 +95,22 @@ class _HomePageState extends State<HomePage>
                                 color: Colors.black.withOpacity(0.2),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
-                              )
+                              ),
                             ],
                           ),
                           child: CircleAvatar(
                             radius: 70,
-                            backgroundColor: Colors.white,
+                            backgroundColor: Colors.transparent,
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Image.asset(
                                 'assets/images/casha_clin_logo.jpg',
-                                errorBuilder:
-                                    (context, error, stackTrace) => const Icon(
-                                  Icons.auto_awesome,
-                                  size: 60,
-                                  color: Color(0xFF1E3A8A),
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.auto_awesome,
+                                      size: 60,
+                                      color: Color(0xFF1E3A8A),
+                                    ),
                               ),
                             ),
                           ),
@@ -152,8 +150,7 @@ class _HomePageState extends State<HomePage>
                             title: "Panel Administrativo",
                             description: "Gestión de stock y clientes",
                             accentColor: const Color(0xFF1E3A8A),
-                            onTap: () =>
-                                Navigator.pushNamed(context, "/admin"),
+                            onTap: () => Navigator.pushNamed(context, "/admin"),
                           ),
                           const SizedBox(height: 20),
                         ],
@@ -165,8 +162,7 @@ class _HomePageState extends State<HomePage>
                           title: "Tienda en Línea",
                           description: "Explora nuestro catálogo completo",
                           accentColor: const Color(0xFFD4AF37),
-                          onTap: () =>
-                              Navigator.pushNamed(context, "/shop"),
+                          onTap: () => Navigator.pushNamed(context, "/shop"),
                         ),
 
                         const SizedBox(height: 30),
@@ -189,8 +185,7 @@ class _HomePageState extends State<HomePage>
                         TextButton.icon(
                           onPressed: () async {
                             await _authService.logout();
-                            Navigator.pushReplacementNamed(
-                                context, '/login');
+                            Navigator.pushReplacementNamed(context, '/login');
                           },
                           icon: const Icon(
                             Icons.logout_rounded,
@@ -200,7 +195,7 @@ class _HomePageState extends State<HomePage>
                             "Cerrar Sesión",
                             style: TextStyle(color: Colors.white70),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -224,10 +219,8 @@ class _HomePageState extends State<HomePage>
     required double speed,
   }) {
     final double animValue = _controller?.value ?? 0.0;
-    final double offsetX =
-        math.sin(animValue * 2 * math.pi * speed) * 20;
-    final double offsetY =
-        math.cos(animValue * 2 * math.pi * speed) * 20;
+    final double offsetX = math.sin(animValue * 2 * math.pi * speed) * 20;
+    final double offsetY = math.cos(animValue * 2 * math.pi * speed) * 20;
 
     return Positioned(
       top: top != null ? top + offsetY : null,
@@ -237,10 +230,7 @@ class _HomePageState extends State<HomePage>
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }
@@ -263,7 +253,7 @@ class _HomePageState extends State<HomePage>
             color: Colors.black.withOpacity(0.1),
             blurRadius: 15,
             offset: const Offset(0, 8),
-          )
+          ),
         ],
       ),
       child: Material(
@@ -282,17 +272,12 @@ class _HomePageState extends State<HomePage>
                     color: accentColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    icon,
-                    color: accentColor,
-                    size: 30,
-                  ),
+                  child: Icon(icon, color: accentColor, size: 30),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
@@ -312,10 +297,7 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
               ],
             ),
           ),
@@ -328,10 +310,7 @@ class _HomePageState extends State<HomePage>
   Widget _featureCard(IconData icon, String title) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(15),
@@ -340,11 +319,7 @@ class _HomePageState extends State<HomePage>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: const Color(0xFFD4AF37),
-            size: 20,
-          ),
+          Icon(icon, color: const Color(0xFFD4AF37), size: 20),
           const SizedBox(width: 12),
           Text(
             title,
