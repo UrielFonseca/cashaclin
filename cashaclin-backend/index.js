@@ -7,6 +7,8 @@ const app = express();
 app.use(cors()); 
 app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
+
 const JWT_SECRET = "CashaClinKey2026";
 const MONGO_URI = "mongodb+srv://uriel:zgWhoAstqcL8Ww4T@laboratoriofullstack.zfzctxt.mongodb.net/";
 
