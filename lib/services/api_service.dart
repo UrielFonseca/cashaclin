@@ -1,18 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
-/// Servicio encargado de la comunicación con la API REST.
-/// Centraliza las peticiones HTTP y la gestión de cabeceras de seguridad.
+/*
+  Servicio de Comunicación API:
+  Gestiona todas las peticiones HTTP hacia el servidor central en producción.
+  Encapsula la lógica de cabeceras, autenticación JWT y manejo de respuestas.
+*/
 class ApiService {
-  /// Determina la URL base dependiendo de si la ejecución es en plataforma Web o Móvil.
-  static String get baseUrl {
-    if (kIsWeb) return "https://cashaclin.onrender.com/api";
-    return "https://cashaclin.onrender.com/api";
-  }
+  /// URL base del servidor Backend alojado en Render.
+  static String get baseUrl => "https://cashaclin.onrender.com/api";
 
-  /// Construye las cabeceras de la petición, incluyendo el token JWT si está disponible.
+  /// Genera las cabeceras estándar incluyendo el token de autorización si existe.
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('jwt_token');
@@ -23,7 +22,7 @@ class ApiService {
     };
   }
 
-  /// Realiza una petición GET al endpoint especificado.
+  /// Realiza una petición GET para obtener recursos del servidor.
   Future<dynamic> get(String endpoint) async {
     final response = await http.get(
       Uri.parse("$baseUrl$endpoint"),
@@ -32,7 +31,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  /// Realiza una petición POST enviando un cuerpo en formato JSON.
+  /// Realiza una petición POST para la creación de nuevos registros.
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse("$baseUrl$endpoint"),
@@ -42,7 +41,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  /// Realiza una petición PUT para actualización de recursos.
+  /// Realiza una petición PUT para la actualización de registros existentes.
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     final response = await http.put(
       Uri.parse("$baseUrl$endpoint"),
@@ -52,7 +51,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  /// Realiza una petición DELETE para eliminación de recursos.
+  /// Realiza una petición DELETE para la eliminación de recursos.
   Future<dynamic> delete(String endpoint) async {
     final response = await http.delete(
       Uri.parse("$baseUrl$endpoint"),
@@ -61,13 +60,13 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  /// Procesa la respuesta del servidor y gestiona los códigos de estado HTTP.
+  /// Centraliza el procesamiento de respuestas y gestión de errores de red.
   dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
     } else {
       throw Exception(
-        "Error del servidor: ${response.statusCode} - ${response.body}",
+        "Error operativo del servidor: ${response.statusCode} - ${response.body}",
       );
     }
   }
